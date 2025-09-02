@@ -1,1 +1,1 @@
-run the project
+This is Expo Go project

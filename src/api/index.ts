@@ -1,29 +1,47 @@
 import axios from 'axios';
-import { API_URL } from '@env';
+import config from '../config';
 
 const apiClient = axios.create({
-  baseURL: process.env.API_URL, // Base URL from .env file
+  baseURL: config.API_URL, // Base URL from .env file
   headers: {
     'Content-Type': 'application/json',
   },
   
 });
 
-export const getToken = async () => {
-    console.log('API URL:', API_URL);
-    console.log('Request body:', {
-        clientId: process.env.client_id,
-        clientSecret: process.env.client_secret,
-      });
+export const getToken = async (clientId: string, clientSecret: string) => {
   try {
     const response = await apiClient.post('/oauth/token', {
-        clientId: process.env.client_id,
-        clientSecret: process.env.client_secret,
+      clientId,
+      clientSecret,
     });
-    console.log('Token response:', response.data);
     return response.data.accessToken;
   } catch (error) {
     console.error('Error fetching token:', error);
+    throw error;
+  }
+};
+
+export const createCallout = async (customerId: string, token: string) => {
+  try {
+    const payload = {
+      location: {
+        accuracy: 5,
+        latitude: 9.019615,
+        longitude: 38.764526,
+      },
+      calloutClassificationId: 2,
+      responseTypeId: 1,
+    };
+    const response = await apiClient.post(`/customers/${customerId}/callouts`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    return response.data.callout.url;
+  } catch (error) {
+    console.error('Error creating callout:', error);
     throw error;
   }
 };

@@ -3,9 +3,9 @@ import { StyleSheet, View, StatusBar, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const HomeScreen = () => {
+const HomeScreen = ({ route }: { route: { params: { dispatchURL: string } } }) => {
   const insets = useSafeAreaInsets();
-  
+  const { dispatchURL } = route.params;
   return (
     <>
       {/* Make status bar transparent on Android */}
@@ -18,7 +18,7 @@ const HomeScreen = () => {
       <View style={styles.container}>
         <WebView 
           source={{ 
-            uri: 'https://dev-dispatch.aura.services/?sessionToken=U2FsdGVkX1%2FCLxu%2F3Pd2NNbIernv2I2fK3k7OGsI36RJLuKK2NHEt%2FNjIQc8s92ps%2BaUm%2BOK15KSAMrAGwxNNrYCurBb3n0%2FujJRCtHj1dQ%3D&calloutId=105199' 
+            uri: dispatchURL
           }} 
           style={[
             styles.webview,
