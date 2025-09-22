@@ -1,0 +1,78 @@
+workflows:
+  embed-manual-build:
+    name: Embed App Build & Publish
+    max_build_duration: 60
+    
+    environment:
+      groups:
+        # Create these environment variable groups in Codemagic UI
+        - expo_credentials
+        - app_store_credentials
+        - google_play_credentials
+      
+      vars:
+        EXPO_SDK_VERSION: "49.0.0" # Adjust to your Expo SDK version
+        NODE_VERSION: "18"
+        
+      node: 18.17.0
+      xcode: latest
+      cocoapods: default
+    
+    cache:
+      cache_paths:
+        - $HOME/.npm
+        - $HOME/Library/Caches/CocoaPods
+        - node_modules
+    
+    triggering:
+      events: [] # Empty array means manual trigger only
+    
+    scripts:
+      - name: Install dependencies
+        script: |
+          npm ci
+          
+      - name: Install Expo CLI and EAS CLI
+        script: |
+          npm install -g @expo/cli@latest
+          npm install -g @expo/eas-cli@latest
+          
+      - name: Expo Login
+        script: |
+          expo login --non-interactive
+          eas login --non-interactive
+          
+      - name: Build for iOS (Production)
+        script: |
+          eas build --platform ios --profile production --non-interactive
+          
+      - name: Build for Android (Production)
+        script: |
+          eas build --platform android --profile production --non-interactive
+    
+    artifacts:
+      - build/ios/**/*.ipa
+      - build/android/**/*.aab
+      - '*.ipa'
+      - '*.aab'
+    
+    publishing:
+      # iOS TestFlight publishing
+      app_store_connect:
+        auth: integration # Use App Store Connect integration
+        submit_to_testflight: true
+        submit_to_app_store: false
+        
+      # Android Google Play Internal Track publishing  
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
+        
+      # Email notifications
+      email:
+        recipients:
+          - your-email@example.com
+        notify:
+          success: true
+          failure: true
