@@ -1,6 +1,6 @@
 workflows:
-  embed-manual-build:
-    name: Embed App Build & Publish
+  expo-embed-build:
+    name: Expo Embed Build & Publish
     max_build_duration: 60
     
     environment:
@@ -57,9 +57,11 @@ workflows:
       - '*.aab'
     
     publishing:
-      # iOS TestFlight publishing
+      # iOS TestFlight publishing using environment variables
       app_store_connect:
-        auth: integration # Use App Store Connect integration
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER  
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
         
