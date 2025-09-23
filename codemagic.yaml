@@ -5,13 +5,10 @@ workflows:
     
     environment:
       groups:
-        # Create these environment variable groups in Codemagic UI
-        - expo_credentials
-        - app_store_credentials
-        - google_play_credentials
+        - expo-embed
       
       vars:
-        EXPO_SDK_VERSION: "49.0.0" # Adjust to your Expo SDK version
+        EXPO_SDK_VERSION: "53.0.0"
         NODE_VERSION: "18"
         
       node: 18.17.0
@@ -25,7 +22,7 @@ workflows:
         - node_modules
     
     triggering:
-      events: [] # Empty array means manual trigger only
+      events: [] # Disable automatic triggers, manual start only
     
     scripts:
       - name: Install dependencies
@@ -74,7 +71,7 @@ workflows:
       # Email notifications
       email:
         recipients:
-          - your-email@example.com
+          - kutbip@aura.services
         notify:
           success: true
           failure: true
