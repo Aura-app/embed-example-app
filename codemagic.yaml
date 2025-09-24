@@ -32,10 +32,16 @@ workflows:
       - name: Install Expo CLI and EAS CLI
         script: |
           npm install -g @expo/cli@latest
-          npm install -g @expo/eas-cli@latest
+          npm install -g eas-cli@latest
+          
+      - name: Verify installations
+        script: |
+          expo --version
+          eas --version
           
       - name: Expo Login
         script: |
+          # EXPO_TOKEN environment variable will automatically authenticate
           expo login --non-interactive
           eas login --non-interactive
           
