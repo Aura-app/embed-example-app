@@ -22,59 +22,44 @@ workflows:
         - node_modules
     
     triggering:
-      events: [] # Disable automatic triggers, manual start only
+      events: [] # Manual trigger only
     
     scripts:
       - name: Install dependencies
         script: |
           npm ci
-          
+          npm install --save-dev eas-cli
+
       - name: Authenticate with Expo
         script: |
-          # EXPO_TOKEN environment variable will automatically authenticate
-          # No explicit login needed when EXPO_TOKEN is set
-          npx @expo/cli@latest whoami || echo "Authentication will use EXPO_TOKEN"
-          npx eas-cli@latest whoami || echo "Authentication will use EXPO_TOKEN"
+          npx @expo/cli@latest whoami || echo "Using EXPO_TOKEN authentication"
+          npx eas whoami || echo "Using EXPO_TOKEN authentication"
           
-      - name: Configure EAS Project
+      - name: Setup iOS & Android credentials
         script: |
-          # Create EAS project (this will create @kutbip/auraembedapp)
-          echo "Creating EAS project for @kutbip/auraembedapp"
-          npx eas-cli@latest init --force --non-interactive
-          
-          # Show project info to confirm creation
-          npx eas-cli@latest project:info
-          
-      - name: Build for iOS (Production)
+          # Map Codemagic env vars to what EAS expects
+          export EXPO_APP_STORE_CONNECT_KEY_ID=$APP_STORE_CONNECT_KEY_IDENTIFIER
+          export EXPO_APP_STORE_CONNECT_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID
+          export EXPO_APP_STORE_CONNECT_PRIVATE_KEY="$APP_STORE_CONNECT_PRIVATE_KEY"
+
+          # Save Play Store service account key to file
+          if [ ! -z "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" ]; then
+            echo $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS > google-play-key.json
+          fi
+
+      - name: Build & Publish iOS (TestFlight)
         script: |
-          npx eas-cli@latest build --platform ios --profile production --non-interactive
+          npx eas build --platform ios --profile production --non-interactive --auto-submit
           
-      - name: Build for Android (Production)
+      - name: Build & Publish Android (Play Internal)
         script: |
-          npx eas-cli@latest build --platform android --profile production --non-interactive
+          npx eas build --platform android --profile production --non-interactive --auto-submit
     
     artifacts:
-      - build/ios/**/*.ipa
-      - build/android/**/*.aab
       - '*.ipa'
       - '*.aab'
     
     publishing:
-      # iOS TestFlight publishing using environment variables
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER  
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        submit_to_testflight: true
-        submit_to_app_store: false
-        
-      # Android Google Play Internal Track publishing  
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: false
-        
-      # Email notifications
       email:
         recipients:
           - kutbip@aura.services
