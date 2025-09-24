@@ -38,15 +38,12 @@ workflows:
           
       - name: Configure EAS Project
         script: |
-          # Initialize EAS project if not already configured
-          if [ ! -f eas.json ]; then
-            npx eas-cli@latest init --non-interactive
-          else
-            echo "eas.json already exists, skipping init"
-          fi
+          # Create EAS project (this will create @kutbip/auraembedapp)
+          echo "Creating EAS project for @kutbip/auraembedapp"
+          npx eas-cli@latest init --force --non-interactive
           
-          # Verify EAS configuration
-          npx eas-cli@latest project:info || npx eas-cli@latest init --non-interactive
+          # Show project info to confirm creation
+          npx eas-cli@latest project:info
           
       - name: Build for iOS (Production)
         script: |
