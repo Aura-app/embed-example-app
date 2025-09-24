@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import { StyleSheet, View, StatusBar, Platform } from 'react-native';
 import { WebView } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 const HomeScreen = ({ route }: { route: { params: { dispatchURL: string } } }) => {
   const insets = useSafeAreaInsets();
   const { dispatchURL } = route.params;
+  const webViewRef = useRef(null); // Reference to the WebView
+  const [canGoBack, setCanGoBack] = useState(false);
+
   return (
     <>
       {/* Make status bar transparent on Android */}
@@ -17,9 +20,11 @@ const HomeScreen = ({ route }: { route: { params: { dispatchURL: string } } }) =
       
       <View style={styles.container}>
         <WebView 
+          ref={webViewRef}
           source={{ 
             uri: dispatchURL
           }} 
+          onNavigationStateChange={(navState) => setCanGoBack(navState.canGoBack)} // Track navigation state
           style={[
             styles.webview,
             {

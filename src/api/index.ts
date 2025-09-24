@@ -2,7 +2,7 @@ import axios from 'axios';
 import config from '../config';
 
 const apiClient = axios.create({
-  baseURL: config.API_URL, // Base URL from .env file
+  baseURL: config.API_URL, // Base URL from config file
   headers: {
     'Content-Type': 'application/json',
   },
@@ -15,6 +15,7 @@ export const getToken = async (clientId: string, clientSecret: string) => {
       clientId,
       clientSecret,
     });
+    console.log('Fetched token:', response);
     return response.data.accessToken;
   } catch (error) {
     console.error('Error fetching token:', error);
@@ -45,5 +46,31 @@ export const createCallout = async (customerId: string, token: string) => {
     throw error;
   }
 };
+
+export const signupCustomer = async (email: string, returnUrl: string, customerReferenceId: string, 
+  siteName: string, siteReferenceId: string, token: string
+) => {
+  try {
+    const payload = {
+      siteDetails: {
+        siteName,
+        siteReferenceId
+      },
+      email,
+      returnUrl,
+      customerReferenceId
+    }
+    const response = await apiClient.post(`/customer-signup/sessions`, payload, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data.returnUrl;
+  }catch (error) {
+    console.error('Error creating signup session:', error);
+    throw error;
+  }
+};
+
 
 export default apiClient;

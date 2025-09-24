@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Aura embed app",
-    "slug": "mynewapp",
+    "slug": "auraembedapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./src/assets/icon.png",
@@ -20,7 +20,7 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mynewapp"
+      "bundleIdentifier": "com.aura.embedapp"
     },
     "android": {
       "adaptiveIcon": {
@@ -28,7 +28,7 @@
         "backgroundColor": "#ffffff"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.mynewapp"
+      "package": "com.aura.embedapp"
     },
     "web": {
       "favicon": "./src/assets/favicon.png"
