@@ -29,29 +29,20 @@ workflows:
         script: |
           npm ci
           
-      - name: Install Expo CLI and EAS CLI
-        script: |
-          npm install -g @expo/cli@latest
-          npm install -g eas-cli@latest
-          
-      - name: Verify installations
-        script: |
-          expo --version
-          eas --version
-          
-      - name: Expo Login
+      - name: Authenticate with Expo
         script: |
           # EXPO_TOKEN environment variable will automatically authenticate
-          expo login --non-interactive
-          eas login --non-interactive
+          # No explicit login needed when EXPO_TOKEN is set
+          npx @expo/cli@latest whoami || echo "Authentication will use EXPO_TOKEN"
+          npx eas-cli@latest whoami || echo "Authentication will use EXPO_TOKEN"
           
       - name: Build for iOS (Production)
         script: |
-          eas build --platform ios --profile production --non-interactive
+          npx eas-cli@latest build --platform ios --profile production --non-interactive
           
       - name: Build for Android (Production)
         script: |
-          eas build --platform android --profile production --non-interactive
+          npx eas-cli@latest build --platform android --profile production --non-interactive
     
     artifacts:
       - build/ios/**/*.ipa
