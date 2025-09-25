@@ -38,23 +38,41 @@ workflows:
         script: |
           npx @expo/cli@latest whoami || echo "Using EXPO_TOKEN for authentication"
           
-      - name: Build iOS with Expo CLI
+      - name: Install EAS CLI
         script: |
-          # Build iOS locally using Expo CLI
-          npx @expo/cli@latest build:ios --type archive --local
+          npm install -g eas-cli@latest
+          
+      - name: Configure EAS Project
+        script: |
+          npx eas-cli@latest init --force --non-interactive
+          
+      - name: Build iOS Locally with EAS
+        script: |
+          # Build iOS locally (no queue, no server)
+          npx eas-cli@latest build --platform ios --profile production --local --non-interactive
             
-      - name: Build Android with Expo CLI
+      - name: Build Android Locally with EAS
         script: |
-          # Build Android AAB locally using Expo CLI  
-          npx @expo/cli@latest build:android --type app-bundle --local
+          # Build Android locally (no queue, no server)
+          npx eas-cli@latest build --platform android --profile production --local --non-interactive
+          
+      - name: Verify Build Artifacts
+        script: |
+          # List all generated build files
+          echo "=== iOS Files ==="
+          find . -name "*.ipa" -type f
+          echo "=== Android Files ==="
+          find . -name "*.aab" -type f
+          find . -name "*.apk" -type f
+          echo "=== All Build Files ==="
+          ls -la *.ipa *.aab *.apk 2>/dev/null || echo "Some files may be in subdirectories"
     
     artifacts:
-      # Local build artifacts (no download needed)
-      - "*.ipa"              # iOS build output
-      - "*.aab"              # Android build output  
-      - "*.apk"              # Android APK if generated
-      - build/**/*.ipa       # Alternative iOS location
-      - build/**/*.aab       # Alternative Android location
+      # Native build artifacts after prebuild
+      - build/ios/ipa/*.ipa                           # iOS build output
+      - android/app/build/outputs/bundle/release/*.aab # Android AAB output
+      - "*.ipa"                                       # Any IPA files
+      - "*.aab"                                       # Any AAB files
     
     publishing:
       # iOS TestFlight publishing
