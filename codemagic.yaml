@@ -1,11 +1,12 @@
 workflows:
-  expo-embed-build:
+  expo-native-build:
     name: Expo Embed Build & Publish
     max_build_duration: 60
     
     environment:
       groups:
         - expo-embed
+      
       vars:
         EXPO_SDK_VERSION: "53.0.0"
         NODE_VERSION: "18"
@@ -19,6 +20,7 @@ workflows:
         - $HOME/.npm
         - $HOME/Library/Caches/CocoaPods
         - node_modules
+        - $HOME/.gradle/caches
     
     triggering:
       events: [] # Manual trigger only
@@ -28,52 +30,34 @@ workflows:
         script: |
           npm ci
           
-      - name: Authenticate with Expo
+      - name: Install Expo CLI
         script: |
-          npx @expo/cli@latest whoami || echo "Using EXPO_TOKEN authentication"
-          npx eas-cli@latest whoami || echo "Using EXPO_TOKEN authentication"
-
-      - name: Configure EAS Project
-        script: |
-          npx eas-cli@latest init --force --non-interactive
+          npm install -g @expo/cli@latest
           
-      - name: Build iOS (Production) 
+      - name: Expo Authentication
         script: |
-          # Build on EAS cloud, download artifacts for Codemagic publishing
-          npx eas-cli@latest build --platform ios --profile production --non-interactive --wait
-
-      - name: Configure Android Keystore
-        script: |
-          # Setup Android keystore for EAS
-          if [ ! -z "$ANDROID_KEYSTORE_BASE64" ]; then
-            echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android-keystore.jks
-            npx eas-cli@latest credentials:configure --platform android --keystore-path android-keystore.jks --keystore-password "$ANDROID_KEYSTORE_PASSWORD" --key-alias "$ANDROID_KEY_ALIAS" --key-password "$ANDROID_KEY_PASSWORD" --non-interactive
-          else
-            echo "No Android keystore provided, using Expo managed credentials"
-          fi    
-      
-      - name: Build Android (Production)
-        script: |
-          # Build on EAS cloud, download artifacts for Codemagic publishing
-          npx eas-cli@latest build --platform android --profile production --non-interactive --wait
+          npx @expo/cli@latest whoami || echo "Using EXPO_TOKEN for authentication"
           
-      - name: Download Build Artifacts
+      - name: Build iOS with Expo CLI
         script: |
-          # Download the built files for publishing
-          npx eas-cli@latest build:list --platform=all --status=finished --limit=2 --json | \
-          jq -r '.[] | select(.platform == "ios") | .artifacts.buildUrl' | head -1 | xargs -I {} wget -O app.ipa {}
-          
-          npx eas-cli@latest build:list --platform=all --status=finished --limit=2 --json | \
-          jq -r '.[] | select(.platform == "android") | .artifacts.buildUrl' | head -1 | xargs -I {} wget -O app.aab {}
+          # Build iOS locally using Expo CLI
+          npx @expo/cli@latest build:ios --type archive --local
+            
+      - name: Build Android with Expo CLI
+        script: |
+          # Build Android AAB locally using Expo CLI  
+          npx @expo/cli@latest build:android --type app-bundle --local
     
     artifacts:
-      - '*.ipa'
-      - '*.aab'
-      - 'build/**/*.ipa'
-      - 'build/**/*.aab'
+      # Local build artifacts (no download needed)
+      - "*.ipa"              # iOS build output
+      - "*.aab"              # Android build output  
+      - "*.apk"              # Android APK if generated
+      - build/**/*.ipa       # Alternative iOS location
+      - build/**/*.aab       # Alternative Android location
     
     publishing:
-      # iOS TestFlight publishing via Codemagic
+      # iOS TestFlight publishing
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
         key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER  
@@ -81,13 +65,12 @@ workflows:
         submit_to_testflight: true
         submit_to_app_store: false
         
-      # Android Google Play Internal Track publishing via Codemagic
+      # Android Google Play Internal Track
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
         submit_as_draft: false
         
-      # Email notifications
       email:
         recipients:
           - kutbip@aura.services
