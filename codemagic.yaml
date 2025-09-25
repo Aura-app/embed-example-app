@@ -6,7 +6,6 @@ workflows:
     environment:
       groups:
         - expo-embed
-      
       vars:
         EXPO_SDK_VERSION: "53.0.0"
         NODE_VERSION: "18"
@@ -28,38 +27,57 @@ workflows:
       - name: Install dependencies
         script: |
           npm ci
-          npm install --save-dev eas-cli
-
+          
       - name: Authenticate with Expo
         script: |
           npx @expo/cli@latest whoami || echo "Using EXPO_TOKEN authentication"
-          npx eas whoami || echo "Using EXPO_TOKEN authentication"
-          
-      - name: Setup iOS & Android credentials
-        script: |
-          # Map Codemagic env vars to what EAS expects
-          export EXPO_APP_STORE_CONNECT_KEY_ID=$APP_STORE_CONNECT_KEY_IDENTIFIER
-          export EXPO_APP_STORE_CONNECT_ISSUER_ID=$APP_STORE_CONNECT_ISSUER_ID
-          export EXPO_APP_STORE_CONNECT_PRIVATE_KEY="$APP_STORE_CONNECT_PRIVATE_KEY"
+          npx eas-cli@latest whoami || echo "Using EXPO_TOKEN authentication"
 
-          # Save Play Store service account key to file
-          if [ ! -z "$GCLOUD_SERVICE_ACCOUNT_CREDENTIALS" ]; then
-            echo $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS > google-play-key.json
-          fi
-
-      - name: Build & Publish iOS (TestFlight)
+      - name: Configure EAS Project
         script: |
-          npx eas build --platform ios --profile production --non-interactive --auto-submit
+          npx eas-cli@latest init --force --non-interactive
           
-      - name: Build & Publish Android (Play Internal)
+      - name: Build iOS (Production) 
         script: |
-          npx eas build --platform android --profile production --non-interactive --auto-submit
+          # Build on EAS cloud, download artifacts for Codemagic publishing
+          npx eas-cli@latest build --platform ios --profile production --non-interactive --wait
+          
+      - name: Build Android (Production)
+        script: |
+          # Build on EAS cloud, download artifacts for Codemagic publishing
+          npx eas-cli@latest build --platform android --profile production --non-interactive --wait
+          
+      - name: Download Build Artifacts
+        script: |
+          # Download the built files for publishing
+          npx eas-cli@latest build:list --platform=all --status=finished --limit=2 --json | \
+          jq -r '.[] | select(.platform == "ios") | .artifacts.buildUrl' | head -1 | xargs -I {} wget -O app.ipa {}
+          
+          npx eas-cli@latest build:list --platform=all --status=finished --limit=2 --json | \
+          jq -r '.[] | select(.platform == "android") | .artifacts.buildUrl' | head -1 | xargs -I {} wget -O app.aab {}
     
     artifacts:
       - '*.ipa'
       - '*.aab'
+      - 'build/**/*.ipa'
+      - 'build/**/*.aab'
     
     publishing:
+      # iOS TestFlight publishing via Codemagic
+      app_store_connect:
+        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
+        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER  
+        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
+        submit_to_testflight: true
+        submit_to_app_store: false
+        
+      # Android Google Play Internal Track publishing via Codemagic
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
+        
+      # Email notifications
       email:
         recipients:
           - kutbip@aura.services
