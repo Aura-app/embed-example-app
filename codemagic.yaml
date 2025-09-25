@@ -41,7 +41,17 @@ workflows:
         script: |
           # Build on EAS cloud, download artifacts for Codemagic publishing
           npx eas-cli@latest build --platform ios --profile production --non-interactive --wait
-          
+
+      - name: Configure Android Keystore
+        script: |
+          # Setup Android keystore for EAS
+          if [ ! -z "$ANDROID_KEYSTORE_BASE64" ]; then
+            echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android-keystore.jks
+            npx eas-cli@latest credentials:configure --platform android --keystore-path android-keystore.jks --keystore-password "$ANDROID_KEYSTORE_PASSWORD" --key-alias "$ANDROID_KEY_ALIAS" --key-password "$ANDROID_KEY_PASSWORD" --non-interactive
+          else
+            echo "No Android keystore provided, using Expo managed credentials"
+          fi    
+      
       - name: Build Android (Production)
         script: |
           # Build on EAS cloud, download artifacts for Codemagic publishing
