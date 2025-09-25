@@ -34,31 +34,43 @@ workflows:
         script: |
           npm install -g @expo/cli@latest
           
-      - name: Expo Authentication
+      - name: Expo prebuild (generate ios/ and android/)
         script: |
-          npx @expo/cli@latest whoami || echo "Using EXPO_TOKEN for authentication"
+          npx expo prebuild --clean --platform all
           
-      - name: Install EAS CLI
+      - name: Decode Android Keystore
         script: |
-          npm install -g eas-cli@latest
+          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
           
-      - name: Configure EAS Project
+      - name: Build Android (AAB)
         script: |
-          npx eas-cli@latest init --force --non-interactive
+          cd android
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=keystore.jks \
+            -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$CM_KEY_PASSWORD
+          cd ..
           
-      - name: Build iOS Locally with EAS
+      - name: Build iOS (IPA)
         script: |
-          # Build iOS locally (no queue, no server)
-          npx eas-cli@latest build --platform ios --profile production --local --non-interactive
-            
-      - name: Build Android Locally with EAS
-        script: |
-          # Build Android locally (no queue, no server)
-          npx eas-cli@latest build --platform android --profile production --local --non-interactive
+          cd ios
+          # Detect workspace
+          WORKSPACE=$(ls *.xcworkspace | head -n 1)
+          echo "Detected workspace: $WORKSPACE"
+          
+          # Detect scheme (take first listed)
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" | awk -F': ' '/Schemes:/{getline; print $1; exit}')
+          echo "Detected scheme: $SCHEME"
+          
+          cd ..
+          xcode-project build-ipa \
+            --workspace ios/$WORKSPACE \
+            --scheme "$SCHEME" \
+            --archive-path build/$SCHEME.xcarchive
           
       - name: Verify Build Artifacts
         script: |
-          # List all generated build files
           echo "=== iOS Files ==="
           find . -name "*.ipa" -type f
           echo "=== Android Files ==="
@@ -68,14 +80,12 @@ workflows:
           ls -la *.ipa *.aab *.apk 2>/dev/null || echo "Some files may be in subdirectories"
     
     artifacts:
-      # Native build artifacts after prebuild
-      - build/ios/ipa/*.ipa                           # iOS build output
-      - android/app/build/outputs/bundle/release/*.aab # Android AAB output
-      - "*.ipa"                                       # Any IPA files
-      - "*.aab"                                       # Any AAB files
+      - build/ios/ipa/*.ipa
+      - android/app/build/outputs/bundle/release/*.aab
+      - "*.ipa"
+      - "*.aab"
     
     publishing:
-      # iOS TestFlight publishing
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
         key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER  
@@ -83,7 +93,6 @@ workflows:
         submit_to_testflight: true
         submit_to_app_store: false
         
-      # Android Google Play Internal Track
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
