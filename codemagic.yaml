@@ -36,7 +36,7 @@ workflows:
           
       - name: Decode Android Keystore
         script: |
-          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
+          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/app/keystore.jks
           
       - name: Build Android (AAB)
         script: |
