@@ -54,20 +54,34 @@ workflows:
           
       - name: Build iOS (IPA)
         script: |
-          cd ios
-          # Detect workspace
-          WORKSPACE=$(ls *.xcworkspace | head -n 1)
-          echo "Detected workspace: $WORKSPACE"
-          
-          # Detect scheme (take first listed)
-          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" | awk -F': ' '/Schemes:/{getline; print $1; exit}')
-          echo "Detected scheme: $SCHEME"
-          
-          cd ..
-          xcode-project build-ipa \
-            --workspace ios/$WORKSPACE \
-            --scheme "$SCHEME" \
-            --archive-path build/$SCHEME.xcarchive
+          # List iOS directory
+          echo "Contents of ios/:"
+          ls ios
+
+          # Prefer .xcworkspace if exists, otherwise fall back to .xcodeproj
+          WORKSPACE=$(ls ios/*.xcworkspace 2>/dev/null | head -n 1)
+          PROJECT=$(ls ios/*.xcodeproj 2>/dev/null | head -n 1)
+
+          if [ -n "$WORKSPACE" ]; then
+            echo "Detected workspace: $WORKSPACE"
+            SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | jq -r '.workspace.schemes[0]')
+            echo "Detected scheme: $SCHEME"
+            xcode-project build-ipa \
+              --workspace "$WORKSPACE" \
+              --scheme "$SCHEME" \
+              --archive-flags="-destination generic/platform=iOS"
+          elif [ -n "$PROJECT" ]; then
+            echo "Detected project: $PROJECT"
+            SCHEME=$(xcodebuild -list -json -project "$PROJECT" | jq -r '.project.schemes[0]')
+            echo "Detected scheme: $SCHEME"
+            xcode-project build-ipa \
+              --project "$PROJECT" \
+              --scheme "$SCHEME" \
+              --archive-flags="-destination generic/platform=iOS"
+          else
+            echo "❌ No .xcworkspace or .xcodeproj found in ios/ directory"
+            exit 1
+          fi
           
       - name: Verify Build Artifacts
         script: |
