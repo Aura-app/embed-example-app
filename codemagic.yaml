@@ -30,13 +30,9 @@ workflows:
         script: |
           npm ci
           
-      - name: Install Expo CLI
+      - name: Install iOS dependencies
         script: |
-          npm install -g @expo/cli@latest
-          
-      - name: Expo prebuild (generate ios/ and android/)
-        script: |
-          npx expo prebuild --clean --platform all
+          cd ios && pod install
           
       - name: Decode Android Keystore
         script: |
@@ -45,41 +41,50 @@ workflows:
       - name: Build Android (AAB)
         script: |
           cd android
+          chmod +x gradlew
           ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=keystore.jks \
-            -Pandroid.injected.signing.store.password=$CM_KEYSTORE_PASSWORD \
-            -Pandroid.injected.signing.key.alias=$CM_KEY_ALIAS \
-            -Pandroid.injected.signing.key.password=$CM_KEY_PASSWORD
-          cd ..
+            -Pandroid.injected.signing.store.file=app/keystore.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
           
       - name: Build iOS (IPA)
         script: |
-          # List iOS directory
+          cd ios
+          
+          # List iOS directory contents
           echo "Contents of ios/:"
-          ls ios
-
-          # Prefer .xcworkspace if exists, otherwise fall back to .xcodeproj
-          WORKSPACE=$(ls ios/*.xcworkspace 2>/dev/null | head -n 1)
-          PROJECT=$(ls ios/*.xcodeproj 2>/dev/null | head -n 1)
-
+          ls -la
+          
+          # Find workspace or project file
+          WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -n 1)
+          PROJECT=$(find . -name "*.xcodeproj" -type d | head -n 1)
+          
           if [ -n "$WORKSPACE" ]; then
-            echo "Detected workspace: $WORKSPACE"
-            SCHEME=$(xcodebuild -list -json -workspace "$WORKSPACE" | jq -r '.workspace.schemes[0]')
-            echo "Detected scheme: $SCHEME"
+            WORKSPACE_NAME=$(basename "$WORKSPACE")
+            echo "Using workspace: $WORKSPACE_NAME"
+            
+            # Get scheme name
+            SCHEME=$(xcodebuild -list -workspace "$WORKSPACE_NAME" | grep -A 100 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
+            echo "Using scheme: $SCHEME"
+            
             xcode-project build-ipa \
-              --workspace "$WORKSPACE" \
-              --scheme "$SCHEME" \
-              --archive-flags="-destination generic/platform=iOS"
+              --workspace "$WORKSPACE_NAME" \
+              --scheme "$SCHEME"
+              
           elif [ -n "$PROJECT" ]; then
-            echo "Detected project: $PROJECT"
-            SCHEME=$(xcodebuild -list -json -project "$PROJECT" | jq -r '.project.schemes[0]')
-            echo "Detected scheme: $SCHEME"
+            PROJECT_NAME=$(basename "$PROJECT")
+            echo "Using project: $PROJECT_NAME"
+            
+            # Get scheme name
+            SCHEME=$(xcodebuild -list -project "$PROJECT_NAME" | grep -A 100 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
+            echo "Using scheme: $SCHEME"
+            
             xcode-project build-ipa \
-              --project "$PROJECT" \
-              --scheme "$SCHEME" \
-              --archive-flags="-destination generic/platform=iOS"
+              --project "$PROJECT_NAME" \
+              --scheme "$SCHEME"
           else
-            echo "❌ No .xcworkspace or .xcodeproj found in ios/ directory"
+            echo "❌ No .xcworkspace or .xcodeproj found"
             exit 1
           fi
           
@@ -89,9 +94,6 @@ workflows:
           find . -name "*.ipa" -type f
           echo "=== Android Files ==="
           find . -name "*.aab" -type f
-          find . -name "*.apk" -type f
-          echo "=== All Build Files ==="
-          ls -la *.ipa *.aab *.apk 2>/dev/null || echo "Some files may be in subdirectories"
     
     artifacts:
       - build/ios/ipa/*.ipa
