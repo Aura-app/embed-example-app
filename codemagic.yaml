@@ -47,46 +47,50 @@ workflows:
             -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
             -Pandroid.injected.signing.key.password=$KEY_PASSWORD
           cd ..
-      - name: Build iOS (IPA)
+      - name: Create iOS export options
         script: |
+          # Create export options plist for App Store distribution
+          cat > ios/export_options.plist << EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>app-store</string>
+              <key>destination</key>
+              <string>export</string>
+              <key>signingStyle</key>
+              <string>automatic</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>uploadBitcode</key>
+              <false/>
+              <key>uploadSymbols</key>
+              <true/>
+          </dict>
+          </plist>
+          EOF
+          
+      - name: Build iOS (IPA) - Alternative
+        script: |
+          # Simple iOS build using xcodebuild directly
           cd ios
           
-          # List iOS directory contents
-          echo "Contents of ios/:"
-          ls -la
-          
-          # Find workspace or project file
-          WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -n 1)
-          PROJECT=$(find . -name "*.xcodeproj" -type d | head -n 1)
-          
-          if [ -n "$WORKSPACE" ]; then
-            WORKSPACE_NAME=$(basename "$WORKSPACE")
-            echo "Using workspace: $WORKSPACE_NAME"
-            
-            # Get scheme name
-            SCHEME=$(xcodebuild -list -workspace "$WORKSPACE_NAME" | grep -A 100 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
-            echo "Using scheme: $SCHEME"
-            
-            xcode-project build-ipa \
-              --workspace "$WORKSPACE_NAME" \
-              --scheme "$SCHEME"
-              
-          elif [ -n "$PROJECT" ]; then
-            PROJECT_NAME=$(basename "$PROJECT")
-            echo "Using project: $PROJECT_NAME"
-            
-            # Get scheme name
-            SCHEME=$(xcodebuild -list -project "$PROJECT_NAME" | grep -A 100 "Schemes:" | grep -v "Schemes:" | head -1 | xargs)
-            echo "Using scheme: $SCHEME"
-            
-            xcode-project build-ipa \
-              --project "$PROJECT_NAME" \
-              --scheme "$SCHEME"
+          # Find workspace or project
+          if [ -f *.xcworkspace/contents.xcworkspacedata ]; then
+            WORKSPACE=$(ls *.xcworkspace | head -1)
+            echo "Building with workspace: $WORKSPACE"
+            xcodebuild -workspace "$WORKSPACE" -scheme "AuraEmbedApp" -configuration Release archive -archivePath build/AuraEmbedApp.xcarchive
+            xcodebuild -exportArchive -archivePath build/AuraEmbedApp.xcarchive -exportPath build/ -exportOptionsPlist export_options.plist
           else
-            echo "❌ No .xcworkspace or .xcodeproj found"
-            exit 1
+            PROJECT=$(ls *.xcodeproj | head -1)
+            echo "Building with project: $PROJECT"
+            xcodebuild -project "$PROJECT" -scheme "AuraEmbedApp" -configuration Release archive -archivePath build/AuraEmbedApp.xcarchive
+            xcodebuild -exportArchive -archivePath build/AuraEmbedApp.xcarchive -exportPath build/ -exportOptionsPlist export_options.plist
           fi
           
+          # Move IPA to root for artifacts
+          cp build/*.ipa ../
       - name: Verify Build Artifacts
         script: |
           echo "=== iOS Files ==="
