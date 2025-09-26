@@ -36,3 +36,21 @@ yarn-error.*
 
 # typescript
 *.tsbuildinfo
+
+# iOS specific (keep ios/ folder but ignore build artifacts)
+ios/build/
+ios/Pods/
+ios/*.xcworkspace/xcuserdata/
+ios/*.xcodeproj/xcuserdata/
+ios/*.xcodeproj/project.xcworkspace/xcuserdata/
+ios/Podfile.lock
+
+# Android specific (keep android/ folder but ignore build artifacts)
+android/.gradle/
+android/app/build/
+android/build/
+android/.idea/
+android/local.properties
+android/gradle.properties
+android/keystore.properties
+android/app/keystore.jks
