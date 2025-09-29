@@ -2,44 +2,63 @@ workflows:
   expo-embed-build:
     name: Expo Embed Build & Publish
     max_build_duration: 60
-    
+
     environment:
       groups:
         - expo-embed
-      
+
       vars:
         EXPO_SDK_VERSION: "53.0.0"
         NODE_VERSION: "18"
-        
+
       node: 18.17.0
       xcode: latest
       cocoapods: default
-    
+
     cache:
       cache_paths:
         - $HOME/.npm
         - $HOME/Library/Caches/CocoaPods
         - node_modules
         - $HOME/.gradle/caches
-    
+
     triggering:
       events: [] # Manual trigger only
-    
+
     scripts:
       - name: Install dependencies
         script: |
           npm ci
 
-      - name: Patch Podfile for Swift optimization (Codemagic only)
+      - name: Expo prebuild (generate ios/ and android/)
+        script: |
+          npx expo prebuild --clean --platform all
+
+      - name: Install iOS dependencies
+        script: |
+          cd ios && pod install
+
+      # - name: Decode Android Keystore
+      #   script: |
+      #     mkdir -p android/app
+      #     echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
+
+      # - name: Build Android (AAB)
+      #   script: |
+      #     cd android
+      #     ./gradlew bundleRelease \
+      #       -Pandroid.injected.signing.store.file=keystore.jks \
+      #       -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+      #       -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+      #       -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+      #     cd ..
+
+      - name: Build iOS (IPA)
         script: |
           cd ios
-          echo "Patching Podfile to disable Swift optimization..."
 
-          # Remove existing conflicting lines if present
-          sed -i '' '/SWIFT_OPTIMIZATION_LEVEL/d' Podfile || true
-
-          # Append post_install block if missing
-          if ! grep -q "post_install do |installer|" Podfile; then
+          # Apply Swift optimization patch for Release builds
+          if ! grep -q "SWIFT_OPTIMIZATION_LEVEL.*Onone" Podfile; then
             cat >> Podfile << 'EOF'
 
           post_install do |installer|
@@ -53,37 +72,19 @@ workflows:
           end
           EOF
           fi
-          
-      - name: Install iOS dependencies
-        script: |
-          cd ios && pod install
-          
-      - name: Decode Android Keystore
-        script: |
-          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
-          
-      - name: Build Android (AAB)
-        script: |
-          cd android
-          ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=keystore.jks \
-            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
-          cd ..
 
-      - name: Build iOS IPA
-        script: |
-          cd ios
-          
-          # Install pods
           pod install
-          
+
           # Find workspace/project
           WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -1)
           PROJECT=$(find . -name "*.xcodeproj" -type d | head -1)
-          
-          # Create export options
+
+          # Prepare paths
+          ARCHIVE_PATH="$(pwd)/build/app.xcarchive"
+          EXPORT_PATH="$(pwd)/build/ipa"
+          mkdir -p "$EXPORT_PATH"
+
+          # Create export options plist
           cat > export_options.plist << EOF
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -93,36 +94,26 @@ workflows:
               <string>app-store</string>
               <key>signingStyle</key>
               <string>automatic</string>
-              <key>uploadSymbols</key>
-              <true/>
-              <key>compileBitcode</key>
-              <true/>
           </dict>
           </plist>
           EOF
-          
+
           # Archive
           if [ -n "$WORKSPACE" ]; then
             WORKSPACE_NAME=$(basename "$WORKSPACE")
-            xcodebuild -workspace "$WORKSPACE_NAME" -scheme AuraEmbedApp -configuration Release archive -archivePath build/app.xcarchive
+            xcodebuild -workspace "$WORKSPACE_NAME" -scheme AuraEmbedApp -configuration Release archive -archivePath "$ARCHIVE_PATH"
           else
             PROJECT_NAME=$(basename "$PROJECT")
-            xcodebuild -project "$PROJECT_NAME" -scheme AuraEmbedApp -configuration Release archive -archivePath build/app.xcarchive
+            xcodebuild -project "$PROJECT_NAME" -scheme AuraEmbedApp -configuration Release archive -archivePath "$ARCHIVE_PATH"
           fi
-          
-          # Export IPA
-          xcodebuild -exportArchive -archivePath build/app.xcarchive -exportPath build -exportOptionsPlist export_options.plist
-          
-          # Copy IPA to root
-          cp build/*.ipa ../
 
-    
+          # Export IPA
+          xcodebuild -exportArchive -archivePath "$ARCHIVE_PATH" -exportPath "$EXPORT_PATH" -exportOptionsPlist export_options.plist
+
     artifacts:
-      - build/ios/ipa/*.ipa
-      - android/app/build/outputs/bundle/release/*.aab
-      - "*.ipa"
-      - "*.aab"
-    
+      - ios/build/ipa/*.ipa
+      # - android/app/build/outputs/bundle/release/*.aab
+
     publishing:
       app_store_connect:
         api_key: $APP_STORE_CONNECT_PRIVATE_KEY
@@ -130,12 +121,12 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
-        
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: false
-        
+
+      # google_play:
+      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+      #   track: internal
+      #   submit_as_draft: false
+
       email:
         recipients:
           - kutbip@aura.services
