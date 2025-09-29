@@ -53,39 +53,62 @@ workflows:
       #       -Pandroid.injected.signing.key.password=$KEY_PASSWORD
       #     cd ..
 
-      - name: Build iOS (IPA)
+      - name: Install iOS dependencies with Swift fix
         script: |
           cd ios
-
-          # Apply Swift optimization patch for Release builds
-          if ! grep -q "SWIFT_OPTIMIZATION_LEVEL.*Onone" Podfile; then
-            cat >> Podfile << 'EOF'
-
+          
+          # Modify existing Podfile to add Swift optimization fix
+          # Remove any existing post_install end and add our fix
+          sed -i '' '/^end$/d' Podfile
+          
+          cat >> Podfile << 'EOF'
+  
+          # Fix Swift optimization for Release builds
           post_install do |installer|
-            installer.pods_project.targets.each do |target|
-              target.build_configurations.each do |config|
-                if config.name == 'Release'
-                  config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+            react_native_post_install(
+              installer,
+              config[:reactNativePath],
+              :mac_catalyst_enabled => false
+            )
+    
+              # Fix Swift optimization issue
+              installer.pods_project.targets.each do |target|
+                target.build_configurations.each do |config|
+                  if config.name == 'Release'
+                    config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+                  end
                 end
               end
             end
           end
           EOF
-          fi
-
+          
           pod install
 
-          # Find workspace/project
-          WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -1)
-          PROJECT=$(find . -name "*.xcodeproj" -type d | head -1)
-
-          # Prepare paths
-          ARCHIVE_PATH="$(pwd)/build/app.xcarchive"
-          EXPORT_PATH="$(pwd)/build/ipa"
-          mkdir -p "$EXPORT_PATH"
-
-          # Create export options plist
-          cat > export_options.plist << EOF
+      - name: Build iOS (IPA)
+        script: |
+          cd ios
+          
+          # Debug: List available workspaces/projects
+          echo "Available iOS project files:"
+          ls -la *.xcworkspace *.xcodeproj 2>/dev/null || echo "None found"
+          
+          # Find the correct workspace name
+          WORKSPACE_PATH=$(find . -name "*.xcworkspace" -type d | head -1)
+          if [ -z "$WORKSPACE_PATH" ]; then
+            echo "No workspace found, looking for project"
+            PROJECT_PATH=$(find . -name "*.xcodeproj" -type d | head -1)
+            if [ -z "$PROJECT_PATH" ]; then
+              echo "No Xcode project found!"
+              exit 1
+            fi
+          fi
+          
+          # Create directories
+          mkdir -p build/ipa
+          
+          # Create export options
+          cat > export_options.plist << 'EOF'
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
           <plist version="1.0">
@@ -94,21 +117,43 @@ workflows:
               <string>app-store</string>
               <key>signingStyle</key>
               <string>automatic</string>
+              <key>stripSwiftSymbols</key>
+              <true/>
           </dict>
           </plist>
           EOF
-
-          # Archive
-          if [ -n "$WORKSPACE" ]; then
-            WORKSPACE_NAME=$(basename "$WORKSPACE")
-            xcodebuild -workspace "$WORKSPACE_NAME" -scheme AuraEmbedApp -configuration Release archive -archivePath "$ARCHIVE_PATH"
+          
+          # Build based on what we found
+          if [ -n "$WORKSPACE_PATH" ]; then
+            WORKSPACE_NAME=$(basename "$WORKSPACE_PATH")
+            echo "Building with workspace: $WORKSPACE_NAME"
+            xcodebuild -workspace "$WORKSPACE_NAME" \
+              -scheme AuraEmbedApp \
+              -configuration Release \
+              -destination "generic/platform=iOS" \
+              -archivePath "build/app.xcarchive" \
+              archive
           else
-            PROJECT_NAME=$(basename "$PROJECT")
-            xcodebuild -project "$PROJECT_NAME" -scheme AuraEmbedApp -configuration Release archive -archivePath "$ARCHIVE_PATH"
+            PROJECT_NAME=$(basename "$PROJECT_PATH")
+            echo "Building with project: $PROJECT_NAME"
+            xcodebuild -project "$PROJECT_NAME" \
+              -scheme AuraEmbedApp \
+              -configuration Release \
+              -destination "generic/platform=iOS" \
+              -archivePath "build/app.xcarchive" \
+              archive
           fi
-
+          
           # Export IPA
-          xcodebuild -exportArchive -archivePath "$ARCHIVE_PATH" -exportPath "$EXPORT_PATH" -exportOptionsPlist export_options.plist
+          xcodebuild -exportArchive \
+            -archivePath "build/app.xcarchive" \
+            -exportPath "build/ipa" \
+            -exportOptionsPlist export_options.plist
+          
+          # Debug: Check what was created
+          echo "Build output:"
+          ls -la build/
+          ls -la build/ipa/ 2>/dev/null || echo "No ipa directory"
 
     artifacts:
       - ios/build/ipa/*.ipa
