@@ -52,6 +52,29 @@ workflows:
         script: |
           cd ios
           
+          # Fix Swift optimization issue in Podfile
+          sed -i '' 's/config.build_settings\['\''SWIFT_OPTIMIZATION_LEVEL'\''\] = '\'''\''/#config.build_settings['\''SWIFT_OPTIMIZATION_LEVEL'\''] = '\'\''/g' Podfile || true
+          
+          # Add Swift optimization fix to Podfile if not present
+          if ! grep -q "SWIFT_OPTIMIZATION_LEVEL.*Onone" Podfile; then
+            cat >> Podfile << 'EOF'
+
+          # Fix Swift optimization for release builds
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                if config.name == 'Release'
+                  config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+                end
+              end
+            end
+          end
+          EOF
+          fi
+          
+          # Reinstall pods with the fix
+          pod install
+          
           # Find workspace or project
           WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -1)
           PROJECT=$(find . -name "*.xcodeproj" -type d | head -1)
@@ -84,13 +107,6 @@ workflows:
           
           # Copy to root
           cp build/*.ipa ../
-
-      - name: Verify Build Artifacts
-        script: |
-          echo "=== iOS Files ==="
-          find . -name "*.ipa" -type f
-          echo "=== Android Files ==="
-          find . -name "*.aab" -type f
     
     artifacts:
       - build/ios/ipa/*.ipa
