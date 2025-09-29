@@ -29,6 +29,30 @@ workflows:
       - name: Install dependencies
         script: |
           npm ci
+
+      - name: Patch Podfile for Swift optimization (Codemagic only)
+        script: |
+          cd ios
+          echo "Patching Podfile to disable Swift optimization..."
+
+          # Remove existing conflicting lines if present
+          sed -i '' '/SWIFT_OPTIMIZATION_LEVEL/d' Podfile || true
+
+          # Append post_install block if missing
+          if ! grep -q "post_install do |installer|" Podfile; then
+            cat >> Podfile << 'EOF'
+
+          post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                if config.name == 'Release'
+                  config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+                end
+              end
+            end
+          end
+          EOF
+          fi
           
       - name: Install iOS dependencies
         script: |
@@ -52,30 +76,10 @@ workflows:
         script: |
           cd ios
           
-          # Fix Swift optimization issue in Podfile
-          sed -i '' 's/config.build_settings\['\''SWIFT_OPTIMIZATION_LEVEL'\''\] = '\'''\''/#config.build_settings['\''SWIFT_OPTIMIZATION_LEVEL'\''] = '\'\''/g' Podfile || true
-          
-          # Add Swift optimization fix to Podfile if not present
-          if ! grep -q "SWIFT_OPTIMIZATION_LEVEL.*Onone" Podfile; then
-            cat >> Podfile << 'EOF'
-
-          # Fix Swift optimization for release builds
-          post_install do |installer|
-            installer.pods_project.targets.each do |target|
-              target.build_configurations.each do |config|
-                if config.name == 'Release'
-                  config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
-                end
-              end
-            end
-          end
-          EOF
-          fi
-          
-          # Reinstall pods with the fix
+          # Install pods
           pod install
           
-          # Find workspace or project
+          # Find workspace/project
           WORKSPACE=$(find . -name "*.xcworkspace" -type d | head -1)
           PROJECT=$(find . -name "*.xcodeproj" -type d | head -1)
           
@@ -89,11 +93,15 @@ workflows:
               <string>app-store</string>
               <key>signingStyle</key>
               <string>automatic</string>
+              <key>uploadSymbols</key>
+              <true/>
+              <key>compileBitcode</key>
+              <true/>
           </dict>
           </plist>
           EOF
           
-          # Build
+          # Archive
           if [ -n "$WORKSPACE" ]; then
             WORKSPACE_NAME=$(basename "$WORKSPACE")
             xcodebuild -workspace "$WORKSPACE_NAME" -scheme AuraEmbedApp -configuration Release archive -archivePath build/app.xcarchive
@@ -105,8 +113,9 @@ workflows:
           # Export IPA
           xcodebuild -exportArchive -archivePath build/app.xcarchive -exportPath build -exportOptionsPlist export_options.plist
           
-          # Copy to root
+          # Copy IPA to root
           cp build/*.ipa ../
+
     
     artifacts:
       - build/ios/ipa/*.ipa
