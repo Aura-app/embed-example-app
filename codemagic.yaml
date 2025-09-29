@@ -34,9 +34,9 @@ workflows:
         script: |
           npx expo prebuild --clean --platform all
 
-      - name: Install iOS dependencies
-        script: |
-          cd ios && pod install
+      # - name: Install iOS dependencies
+      #   script: |
+      #     cd ios && pod install
 
       # - name: Decode Android Keystore
       #   script: |
@@ -57,33 +57,35 @@ workflows:
         script: |
           cd ios
           
-          # Modify existing Podfile to add Swift optimization fix
-          # Remove any existing post_install end and add our fix
-          sed -i '' '/^end$/d' Podfile
+          # First install pods normally
+          pod install
           
-          cat >> Podfile << 'EOF'
-  
-          # Fix Swift optimization for Release builds
-          post_install do |installer|
-            react_native_post_install(
-              installer,
-              config[:reactNativePath],
-              :mac_catalyst_enabled => false
-            )
-    
-              # Fix Swift optimization issue
-              installer.pods_project.targets.each do |target|
-                target.build_configurations.each do |config|
-                  if config.name == 'Release'
-                    config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
-                  end
+          # Then directly modify the Pods project to fix Swift optimization
+          ruby << 'RUBY_SCRIPT'
+          require 'xcodeproj'
+
+          puts "Applying Swift optimization fix to Pods project..."
+
+          project_path = 'Pods/Pods.xcodeproj'
+          if File.exist?(project_path)
+            project = Xcodeproj::Project.open(project_path)
+            
+            project.targets.each do |target|
+              target.build_configurations.each do |config|
+                if config.name == 'Release'
+                  config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
+                  puts "Fixed #{target.name} - #{config.name}"
                 end
               end
             end
+            
+            project.save
+            puts "Swift optimization fix applied successfully"
+          else
+            puts "Pods project not found at #{project_path}"
+            exit 1
           end
-          EOF
-          
-          pod install
+          RUBY_SCRIPT
 
       - name: Build iOS (IPA)
         script: |
