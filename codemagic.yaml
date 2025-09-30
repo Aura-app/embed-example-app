@@ -8,6 +8,7 @@ workflows:
         - expo-embed
 
       vars:
+        APPLE_TEAM_ID: "27XW93998V"
         EXPO_SDK_VERSION: "53.0.0"
         NODE_VERSION: "18"
 
@@ -137,7 +138,7 @@ workflows:
           </plist>
           EOF
           
-          # Build with verbose output to capture actual errors
+          # Build with code signing
           set -o pipefail
           if [ -n "$WORKSPACE_PATH" ]; then
             echo "Building with workspace: $WORKSPACE_PATH"
@@ -146,6 +147,8 @@ workflows:
               -configuration Release \
               -destination "generic/platform=iOS" \
               -archivePath "build/app.xcarchive" \
+              -allowProvisioningUpdates \
+              DEVELOPMENT_TEAM=$APPLE_TEAM_ID \
               archive 2>&1 | tee xcodebuild.log
             
             BUILD_RESULT=${PIPESTATUS[0]}
@@ -164,6 +167,8 @@ workflows:
               -configuration Release \
               -destination "generic/platform=iOS" \
               -archivePath "build/app.xcarchive" \
+              -allowProvisioningUpdates \
+              DEVELOPMENT_TEAM=$APPLE_TEAM_ID \
               archive 2>&1 | tee xcodebuild.log
             
             BUILD_RESULT=${PIPESTATUS[0]}
@@ -191,7 +196,8 @@ workflows:
           xcodebuild -exportArchive \
             -archivePath "build/app.xcarchive" \
             -exportPath "build/ipa" \
-            -exportOptionsPlist export_options.plist
+            -exportOptionsPlist export_options.plist \
+            -allowProvisioningUpdates
           
           # Debug: Check what was created
           echo "=== Build output ==="
