@@ -95,7 +95,7 @@ workflows:
           echo "=== Contents of ios/ directory ==="
           ls -la
           
-          # Find workspace or project (must be a directory with .xcworkspace or .xcodeproj extension)
+          # Find workspace or project
           WORKSPACE_PATH=""
           PROJECT_PATH=""
           
@@ -137,7 +137,8 @@ workflows:
           </plist>
           EOF
           
-          # Build based on what we found
+          # Build with verbose output to capture actual errors
+          set -o pipefail
           if [ -n "$WORKSPACE_PATH" ]; then
             echo "Building with workspace: $WORKSPACE_PATH"
             xcodebuild -workspace "$WORKSPACE_PATH" \
@@ -145,7 +146,17 @@ workflows:
               -configuration Release \
               -destination "generic/platform=iOS" \
               -archivePath "build/app.xcarchive" \
-              archive
+              archive 2>&1 | tee xcodebuild.log
+            
+            BUILD_RESULT=${PIPESTATUS[0]}
+            if [ $BUILD_RESULT -ne 0 ]; then
+              echo "=== BUILD FAILED ==="
+              echo "Showing last 100 lines of build log:"
+              tail -100 xcodebuild.log
+              echo "=== Searching for errors ==="
+              grep -i "error:" xcodebuild.log | tail -20
+              exit $BUILD_RESULT
+            fi
           elif [ -n "$PROJECT_PATH" ]; then
             echo "Building with project: $PROJECT_PATH"
             xcodebuild -project "$PROJECT_PATH" \
@@ -153,13 +164,30 @@ workflows:
               -configuration Release \
               -destination "generic/platform=iOS" \
               -archivePath "build/app.xcarchive" \
-              archive
+              archive 2>&1 | tee xcodebuild.log
+            
+            BUILD_RESULT=${PIPESTATUS[0]}
+            if [ $BUILD_RESULT -ne 0 ]; then
+              echo "=== BUILD FAILED ==="
+              echo "Showing last 100 lines of build log:"
+              tail -100 xcodebuild.log
+              echo "=== Searching for errors ==="
+              grep -i "error:" xcodebuild.log | tail -20
+              exit $BUILD_RESULT
+            fi
           else
             echo "ERROR: No .xcworkspace or .xcodeproj found!"
             exit 1
           fi
           
+          # Verify archive was created
+          if [ ! -d "build/app.xcarchive" ]; then
+            echo "ERROR: Archive was not created at build/app.xcarchive"
+            exit 1
+          fi
+          
           # Export IPA
+          echo "=== Exporting IPA ==="
           xcodebuild -exportArchive \
             -archivePath "build/app.xcarchive" \
             -exportPath "build/ipa" \
