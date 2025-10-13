@@ -27,6 +27,15 @@ workflows:
       events: [] # Manual trigger only
 
     scripts:
+      - name: Persist App Store secrets
+        script: |
+          mkdir -p /tmp/secrets
+          echo "$APP_STORE_CONNECT_ISSUER_ID" > /tmp/secrets/issuer_id.txt
+          echo "$APP_STORE_CONNECT_KEY_IDENTIFIER" > /tmp/secrets/key_id.txt
+          printf "%s" "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/secrets/appstore_private_key.pem
+          printf "%s" "$CERTIFICATE_PRIVATE_KEY" > /tmp/secrets/cert_private_key.pem
+          echo "Secrets persisted under /tmp/secrets/"
+          
       - name: Install dependencies
         script: |
           npm ci
