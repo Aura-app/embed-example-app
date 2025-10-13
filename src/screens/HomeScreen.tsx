@@ -1,13 +1,22 @@
 import React, { useRef, useState } from 'react';
 import { StyleSheet, View, StatusBar, Platform } from 'react-native';
-import { WebView } from 'react-native-webview';
+import { WebView, WebViewNavigation } from 'react-native-webview';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 
-const HomeScreen = ({ route }: { route: { params: { dispatchURL: string } } }) => {
+
+const HomeScreen = ({ route }: { route: { params: { dispatchURL: string , returnUrl: string } } }) => {
   const insets = useSafeAreaInsets();
   const { dispatchURL } = route.params;
   const webViewRef = useRef(null); // Reference to the WebView
   const [canGoBack, setCanGoBack] = useState(false);
+  const navigation = useNavigation();
+
+  const handleNavigationStateChange = (navState: WebViewNavigation) => {
+    if (navState.url.includes(route.params.returnUrl)) {
+      navigation.goBack();
+    }
+  }
 
   return (
     <>
@@ -24,7 +33,9 @@ const HomeScreen = ({ route }: { route: { params: { dispatchURL: string } } }) =
           source={{ 
             uri: dispatchURL
           }} 
-          onNavigationStateChange={(navState) => setCanGoBack(navState.canGoBack)} // Track navigation state
+          onNavigationStateChange={handleNavigationStateChange}
+          cacheEnabled={false}
+          cacheMode='LOAD_NO_CACHE'
           style={[
             styles.webview,
             {

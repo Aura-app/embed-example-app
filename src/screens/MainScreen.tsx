@@ -1,19 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, Alert, Image, Text, ScrollView, KeyboardAvoidingView, Platform, Switch } from 'react-native';
+import { StyleSheet, View, TextInput, Alert, Image, Text, ScrollView, KeyboardAvoidingView, Platform, Switch, TouchableOpacity } from 'react-native';
 import CenterButton from '../components/CenterButton';
 import { createCallout, getToken, signupCustomer } from '../api';
 import * as Location from 'expo-location';
 import Loader from '../components/Loader';
 
-const MainScreen = ({ navigation }) => {
-  const [field1, setField1] = useState('');
-  const [field2, setField2] = useState('');
-  const [field3, setField3] = useState('');
-  const [field4, setField4] = useState('');
-  const [field5, setField5] = useState('');
+const MainScreen = ({ navigation }: any) => {
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
+  const [customerId, setCustomerId] = useState('');
+  const [email, setEmail] = useState('');
+  const [returnUrl, setReturnUrl] = useState('');
   const [siteName, setSiteName] = useState('');
-  const [field6, setField6] = useState('');
-  const [field7, setField7] = useState('');
+  const [siteReferenceId, setSiteReferenceId] = useState('');
+  const [customerReferenceId, setCustomerReferenceId] = useState('');
   const [loading, setLoading] = useState(false);
   const [token, setToken] = useState('');
   const [buttonState, setButtonState] = useState<'getToken' | 'goToDispatch'>('getToken');
@@ -38,14 +38,14 @@ const MainScreen = ({ navigation }) => {
 
   const handleButtonPress = async () => {
     if (buttonState === 'getToken') {
-      if (!field1 || !field2) {
+      if (!clientId || !clientSecret) {
         Alert.alert('Validation Error', 'Client ID and Client Secret are required.');
         return;
       }
 
       setLoading(true);
       try {
-        const tokenVal = await getToken(field1, field2);
+        const tokenVal = await getToken(clientId, clientSecret);
         setToken(tokenVal);
         setButtonState('goToDispatch'); // Change button state to "Go to Dispatch"
       } catch (error) {
@@ -54,14 +54,14 @@ const MainScreen = ({ navigation }) => {
         setLoading(false);
       }
     } else if (buttonState === 'goToDispatch') {
-      if (!field3) {
+      if (!customerId) {
         Alert.alert('Validation Error', 'Customer ID is required.');
         return;
       }
 
       setLoading(true);
       try {
-        const dispatchURL = await createCallout(field3, token);
+        const dispatchURL = await createCallout(customerId, token);
         navigation.navigate('Home', { dispatchURL });
       } catch (error) {
         console.error('Failed to create callout:', error);
@@ -72,15 +72,15 @@ const MainScreen = ({ navigation }) => {
   };
 
   const handleSignup = async () => {
-    if (!field4 || !field5 || !siteName) {
+    if (!email || !returnUrl || !siteName) {
       Alert.alert('Validation Error', 'Email, Return URL, and Site Name fields are mandatory');
       return;
     }
     console.log("isWebView: ", isWebView);
     setLoading(true)
     try {
-      const dispatchURL = await signupCustomer(field4, field5, field7, siteName, 
-        field6, token);
+      const dispatchURL = await signupCustomer(email, returnUrl, customerReferenceId, siteName, 
+        siteReferenceId, token);
       navigation.navigate('Home', {dispatchURL});
     } catch (error) {
       console.error('Failed to fetch data on button click:', error);
@@ -89,7 +89,18 @@ const MainScreen = ({ navigation }) => {
     }
   };
 
-  const toggleSwitch = (value) => setIsWebView(value);
+  const toggleSwitch = (value: boolean) => setIsWebView(value);
+
+  const applyTestValues = () => {
+    setClientId('');
+    setClientSecret('');
+    setCustomerId('');
+    setEmail('');
+    setReturnUrl('');
+    setSiteName('');
+    setSiteReferenceId('');
+    setCustomerReferenceId('');
+  };
 
   return (
     <KeyboardAvoidingView
@@ -115,20 +126,20 @@ const MainScreen = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Enter Client ID"
-            value={field1}
-            onChangeText={setField1}
+            value={clientId}
+            onChangeText={setClientId}
           />
           <TextInput
             style={styles.input}
             placeholder="Enter Client Secret"
-            value={field2}
-            onChangeText={setField2}
+            value={clientSecret}
+            onChangeText={setClientSecret}
           />
           <TextInput
             style={styles.input}
             placeholder="Enter Customer ID"
-            value={field3}
-            onChangeText={setField3}
+            value={customerId}
+            onChangeText={setCustomerId}
           />
         
           <CenterButton 
@@ -140,21 +151,21 @@ const MainScreen = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Enter email"
-            value={field4}
-            onChangeText={setField4}
+            value={email}
+            onChangeText={setEmail}
           />
           <TextInput
             style={styles.input}
             placeholder="Enter return url"
-            value={field5}
-            onChangeText={setField5}
+            value={returnUrl}
+            onChangeText={setReturnUrl}
           />
 
           <TextInput
             style={styles.input}
             placeholder="Enter Customer reference id (Optional)"
-            value={field7}
-            onChangeText={setField7}
+            value={customerReferenceId}
+            onChangeText={setCustomerReferenceId}
           />
 
           <Text style={styles.label}>Site Details</Text>
@@ -169,14 +180,25 @@ const MainScreen = ({ navigation }) => {
           <TextInput
             style={styles.input}
             placeholder="Enter Site reference id (Optional)"
-            value={field6}
-            onChangeText={setField6}
+            value={siteReferenceId}
+            onChangeText={setSiteReferenceId}
           />
           <CenterButton title="Customer Signup Flow" onPress={(handleSignup)} style={[styles.button_theme, styles.buttonSpacing]} textStyle={styles.text} />
           <Loader
             visible={loading} message='Processing....'></Loader>
         </View>
       </ScrollView>
+      {
+        __DEV__ && (
+          <TouchableOpacity 
+            style={styles.fab} 
+            onPress={applyTestValues}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.fabText}>T</Text>
+          </TouchableOpacity>
+        )
+      }
     </KeyboardAvoidingView>
   );
 };
@@ -239,6 +261,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginHorizontal: 10
+  },
+  fab: {
+    position: 'absolute',
+    top: 30,
+    right: 30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#38cb82',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
 
