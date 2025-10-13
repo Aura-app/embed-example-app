@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, Alert, Image, Text, ScrollView, KeyboardAvoidingView, Platform, Switch } from 'react-native';
+import { StyleSheet, View, TextInput, Alert, Image, Text, ScrollView, KeyboardAvoidingView, Platform, Switch, TouchableOpacity } from 'react-native';
 import CenterButton from '../components/CenterButton';
 import { createCallout, getToken, signupCustomer } from '../api';
 import * as Location from 'expo-location';
 import Loader from '../components/Loader';
 
-const MainScreen = ({ navigation }) => {
+const MainScreen = ({ navigation }: any) => {
   const [clientId, setClientId] = useState('');
   const [clientSecret, setClientSecret] = useState('');
   const [customerId, setCustomerId] = useState('');
@@ -90,6 +90,17 @@ const MainScreen = ({ navigation }) => {
   };
 
   const toggleSwitch = (value: boolean) => setIsWebView(value);
+
+  const applyTestValues = () => {
+    setClientId('');
+    setClientSecret('');
+    setCustomerId('');
+    setEmail('');
+    setReturnUrl('');
+    setSiteName('');
+    setSiteReferenceId('');
+    setCustomerReferenceId('');
+  };
 
   return (
     <KeyboardAvoidingView
@@ -177,6 +188,17 @@ const MainScreen = ({ navigation }) => {
             visible={loading} message='Processing....'></Loader>
         </View>
       </ScrollView>
+      {
+        __DEV__ && (
+          <TouchableOpacity 
+            style={styles.fab} 
+            onPress={applyTestValues}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.fabText}>T</Text>
+          </TouchableOpacity>
+        )
+      }
     </KeyboardAvoidingView>
   );
 };
@@ -239,6 +261,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
     marginHorizontal: 10
+  },
+  fab: {
+    position: 'absolute',
+    top: 30,
+    right: 30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#38cb82',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  fabText: {
+    color: '#fff',
+    fontSize: 24,
+    fontWeight: 'bold',
   },
 });
 
