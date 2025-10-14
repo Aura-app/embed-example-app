@@ -2,17 +2,17 @@ workflows:
   expo-embed-build:
     name: Expo Embed Build & Publish
     max_build_duration: 60
-    
+
     integrations:
-      app_store_connect: AuraEmbedApp  # Name of the App Store Connect integration
+      app_store_connect: AuraEmbedApp
 
     environment:
       groups:
         - expo-embed
-      
-      # ios_signing:
-      #   distribution_type: app_store
-      #   bundle_identifier: com.aura.embedapp
+
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: $BUNDLE_ID
 
       vars:
         EXPO_SDK_VERSION: "53.0.0"
@@ -39,7 +39,8 @@ workflows:
 
       - name: Expo prebuild (generate ios/ and android/)
         script: |
-          npx expo prebuild --clean --platform all
+          npx expo prebuild --clean --platform all \
+            --bundle-identifier $BUNDLE_ID
 
       - name: Decode Android Keystore
         script: |
@@ -59,108 +60,31 @@ workflows:
       - name: Install iOS dependencies with Swift fix
         script: |
           cd ios
-          
-          # First install pods normally
           pod install
-          
-          # Then directly modify the Pods project to fix Swift optimization
           ruby << 'RUBY_SCRIPT'
           require 'xcodeproj'
-
-          puts "Applying Swift optimization fix to Pods project..."
-
           project_path = 'Pods/Pods.xcodeproj'
           if File.exist?(project_path)
             project = Xcodeproj::Project.open(project_path)
-            
             project.targets.each do |target|
               target.build_configurations.each do |config|
-                if config.name == 'Release'
-                  config.build_settings['SWIFT_OPTIMIZATION_LEVEL'] = '-Onone'
-                  puts "Fixed #{target.name} - #{config.name}"
-                end
+                config.build_settings['SWIFT_COMPILATION_MODE'] = 'wholemodule'
               end
             end
-            
             project.save
-            puts "Swift optimization fix applied successfully"
-          else
-            puts "Pods project not found at #{project_path}"
-            exit 1
           end
           RUBY_SCRIPT
+          cd ..
 
       - name: Build iOS (IPA)
         script: |
-          cd ios
-          
-          # Find workspace
-          WORKSPACE_PATH=""
-          for file in *.xcworkspace; do
-            if [ -d "$file" ]; then
-              WORKSPACE_PATH="$file"
-              break
-            fi
-          done
-          
-          echo "Found workspace: $WORKSPACE_PATH"
-          
-          # Create directories
-          mkdir -p build/ipa
-          
-          # Build - Codemagic handles code signing automatically
-          set -o pipefail
-          xcodebuild -workspace "$WORKSPACE_PATH" \
-            -scheme AuraEmbedApp \
-            -configuration Release \
-            -sdk iphoneos \
-            -archivePath "build/app.xcarchive" \
-            CODE_SIGN_IDENTITY="iPhone Distribution" \
-            archive 2>&1 | tee xcodebuild.log
-          
-          BUILD_RESULT=${PIPESTATUS[0]}
-          if [ $BUILD_RESULT -ne 0 ]; then
-            echo "=== BUILD FAILED ==="
-            tail -100 xcodebuild.log
-            grep -i "error:" xcodebuild.log | tail -20
-            exit $BUILD_RESULT
-          fi
-          
-          # Verify archive
-          if [ ! -d "build/app.xcarchive" ]; then
-            echo "ERROR: Archive not created"
-            exit 1
-          fi
-          
-          # Export IPA - Codemagic handles export options automatically
-          echo "=== Exporting IPA ==="
-          xcodebuild -exportArchive \
-            -archivePath "build/app.xcarchive" \
-            -exportPath "build/ipa" \
-            -exportOptionsPlist $FCI_EXPORT_OPTIONS_FILE
-          
-          echo "=== Build complete ==="
-          ls -laR build/
+          xcode-project build-ipa \
+            --workspace "ios/AuraEmbedApp.xcworkspace" \
+            --scheme "AuraEmbedApp" \
+            --export-method app-store \
+            --bundle-id $BUNDLE_ID
 
     artifacts:
-      - ios/build/ipa/*.ipa
-      - android/app/build/outputs/bundle/release/*.aab
-
-
-    publishing:
-      app_store_connect:
-        api_key: $APP_STORE_CONNECT_PRIVATE_KEY
-        key_id: $APP_STORE_CONNECT_KEY_IDENTIFIER  
-        issuer_id: $APP_STORE_CONNECT_ISSUER_ID
-        submit_to_testflight: true
-        submit_to_app_store: false
-      google_play:
-        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-        track: internal
-        submit_as_draft: true
-      email:
-        recipients:
-          - kutbip@aura.services
-        notify:
-          success: true
-          failure: true
+      - build/ios/ipa/*.ipa
+      - build/app/outputs/**/*.aab
+      - build/app/outputs/**/*.apk
