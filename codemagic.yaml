@@ -39,8 +39,7 @@ workflows:
 
       - name: Expo prebuild (generate ios/ and android/)
         script: |
-          npx expo prebuild --clean --platform all \
-            --bundle-identifier $BUNDLE_ID
+          npx expo prebuild --clean --platform all
 
       - name: Decode Android Keystore
         script: |
