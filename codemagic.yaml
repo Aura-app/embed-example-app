@@ -2,13 +2,19 @@ workflows:
   expo-embed-build:
     name: Expo Embed Build & Publish
     max_build_duration: 60
+    
+    integrations:
+      app_store_connect: AuraEmbedApp  # Name of the App Store Connect integration
 
     environment:
       groups:
         - expo-embed
+      
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.aura.embedapp
 
       vars:
-        APPLE_TEAM_ID: "27XW93998V"
         EXPO_SDK_VERSION: "53.0.0"
         NODE_VERSION: "18"
 
@@ -27,15 +33,6 @@ workflows:
       events: [] # Manual trigger only
 
     scripts:
-      - name: Persist App Store secrets
-        script: |
-          mkdir -p /tmp/secrets
-          echo "$APP_STORE_CONNECT_ISSUER_ID" > /tmp/secrets/issuer_id.txt
-          echo "$APP_STORE_CONNECT_KEY_IDENTIFIER" > /tmp/secrets/key_id.txt
-          printf "%s" "$APP_STORE_CONNECT_PRIVATE_KEY" > /tmp/secrets/appstore_private_key.pem
-          printf "%s" "$CERTIFICATE_PRIVATE_KEY" > /tmp/secrets/cert_private_key.pem
-          echo "Secrets persisted under /tmp/secrets/"
-          
       - name: Install dependencies
         script: |
           npm ci
@@ -44,24 +41,20 @@ workflows:
         script: |
           npx expo prebuild --clean --platform all
 
-      # - name: Install iOS dependencies
-      #   script: |
-      #     cd ios && pod install
+      - name: Decode Android Keystore
+        script: |
+          mkdir -p android/app
+          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
 
-      # - name: Decode Android Keystore
-      #   script: |
-      #     mkdir -p android/app
-      #     echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
-
-      # - name: Build Android (AAB)
-      #   script: |
-      #     cd android
-      #     ./gradlew bundleRelease \
-      #       -Pandroid.injected.signing.store.file=keystore.jks \
-      #       -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-      #       -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-      #       -Pandroid.injected.signing.key.password=$KEY_PASSWORD
-      #     cd ..
+      - name: Build Android (AAB)
+        script: |
+          cd android
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=keystore.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+          cd ..
 
       - name: Install iOS dependencies with Swift fix
         script: |
@@ -101,14 +94,8 @@ workflows:
         script: |
           cd ios
           
-          # Debug: Show actual files
-          echo "=== Contents of ios/ directory ==="
-          ls -la
-          
-          # Find workspace or project
+          # Find workspace
           WORKSPACE_PATH=""
-          PROJECT_PATH=""
-          
           for file in *.xcworkspace; do
             if [ -d "$file" ]; then
               WORKSPACE_PATH="$file"
@@ -116,105 +103,49 @@ workflows:
             fi
           done
           
-          if [ -z "$WORKSPACE_PATH" ]; then
-            for file in *.xcodeproj; do
-              if [ -d "$file" ]; then
-                PROJECT_PATH="$file"
-                break
-              fi
-            done
-          fi
-          
           echo "Found workspace: $WORKSPACE_PATH"
-          echo "Found project: $PROJECT_PATH"
           
           # Create directories
           mkdir -p build/ipa
           
-          # Create export options
-          cat > export_options.plist << 'EOF'
-          <?xml version="1.0" encoding="UTF-8"?>
-          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-          <plist version="1.0">
-          <dict>
-              <key>method</key>
-              <string>app-store</string>
-              <key>signingStyle</key>
-              <string>automatic</string>
-              <key>stripSwiftSymbols</key>
-              <true/>
-          </dict>
-          </plist>
-          EOF
-          
-          # Build with code signing
+          # Build - Codemagic handles code signing automatically
           set -o pipefail
-          if [ -n "$WORKSPACE_PATH" ]; then
-            echo "Building with workspace: $WORKSPACE_PATH"
-            xcodebuild -workspace "$WORKSPACE_PATH" \
-              -scheme AuraEmbedApp \
-              -configuration Release \
-              -destination "generic/platform=iOS" \
-              -archivePath "build/app.xcarchive" \
-              -allowProvisioningUpdates \
-              DEVELOPMENT_TEAM=$APPLE_TEAM_ID \
-              archive 2>&1 | tee xcodebuild.log
-            
-            BUILD_RESULT=${PIPESTATUS[0]}
-            if [ $BUILD_RESULT -ne 0 ]; then
-              echo "=== BUILD FAILED ==="
-              echo "Showing last 100 lines of build log:"
-              tail -100 xcodebuild.log
-              echo "=== Searching for errors ==="
-              grep -i "error:" xcodebuild.log | tail -20
-              exit $BUILD_RESULT
-            fi
-          elif [ -n "$PROJECT_PATH" ]; then
-            echo "Building with project: $PROJECT_PATH"
-            xcodebuild -project "$PROJECT_PATH" \
-              -scheme AuraEmbedApp \
-              -configuration Release \
-              -destination "generic/platform=iOS" \
-              -archivePath "build/app.xcarchive" \
-              -allowProvisioningUpdates \
-              DEVELOPMENT_TEAM=$APPLE_TEAM_ID \
-              archive 2>&1 | tee xcodebuild.log
-            
-            BUILD_RESULT=${PIPESTATUS[0]}
-            if [ $BUILD_RESULT -ne 0 ]; then
-              echo "=== BUILD FAILED ==="
-              echo "Showing last 100 lines of build log:"
-              tail -100 xcodebuild.log
-              echo "=== Searching for errors ==="
-              grep -i "error:" xcodebuild.log | tail -20
-              exit $BUILD_RESULT
-            fi
-          else
-            echo "ERROR: No .xcworkspace or .xcodeproj found!"
-            exit 1
+          xcodebuild -workspace "$WORKSPACE_PATH" \
+            -scheme AuraEmbedApp \
+            -configuration Release \
+            -sdk iphoneos \
+            -archivePath "build/app.xcarchive" \
+            CODE_SIGN_IDENTITY="iPhone Distribution" \
+            archive 2>&1 | tee xcodebuild.log
+          
+          BUILD_RESULT=${PIPESTATUS[0]}
+          if [ $BUILD_RESULT -ne 0 ]; then
+            echo "=== BUILD FAILED ==="
+            tail -100 xcodebuild.log
+            grep -i "error:" xcodebuild.log | tail -20
+            exit $BUILD_RESULT
           fi
           
-          # Verify archive was created
+          # Verify archive
           if [ ! -d "build/app.xcarchive" ]; then
-            echo "ERROR: Archive was not created at build/app.xcarchive"
+            echo "ERROR: Archive not created"
             exit 1
           fi
           
-          # Export IPA
+          # Export IPA - Codemagic handles export options automatically
           echo "=== Exporting IPA ==="
           xcodebuild -exportArchive \
             -archivePath "build/app.xcarchive" \
             -exportPath "build/ipa" \
-            -exportOptionsPlist export_options.plist \
-            -allowProvisioningUpdates
+            -exportOptionsPlist $FCI_EXPORT_OPTIONS_FILE
           
-          # Debug: Check what was created
-          echo "=== Build output ==="
+          echo "=== Build complete ==="
           ls -laR build/
 
     artifacts:
       - ios/build/ipa/*.ipa
-      # - android/app/build/outputs/bundle/release/*.aab
+      - android/app/build/outputs/bundle/release/*.aab
+
 
     publishing:
       app_store_connect:
@@ -223,12 +154,10 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
-
-      # google_play:
-      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-      #   track: internal
-      #   submit_as_draft: false
-
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: true
       email:
         recipients:
           - kutbip@aura.services
