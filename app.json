@@ -1,0 +1,49 @@
+{
+  "expo": {
+    "name": "AuraEmbedApp",
+    "slug": "auraembedapp",
+    "owner": "kutbip",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./src/assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "updates": {
+      "fallbackToCacheTimeout": 0
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      },
+      "supportsTablet": true,
+      "bundleIdentifier": "com.aura.embedapp"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.aura.embedapp"
+    },
+    "web": {
+      "favicon": "./src/assets/favicon.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "01f6cc7d-2d7e-4533-bb3c-62569b0932be"
+      }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
