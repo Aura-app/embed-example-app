@@ -10,9 +10,9 @@ workflows:
       groups:
         - expo-embed
       
-      ios_signing:
-        distribution_type: app_store
-        bundle_identifier: com.aura.embedapp
+      # ios_signing:
+      #   distribution_type: app_store
+      #   bundle_identifier: com.aura.embedapp
 
       vars:
         EXPO_SDK_VERSION: "53.0.0"
