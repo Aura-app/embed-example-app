@@ -3,16 +3,13 @@ workflows:
     name: Expo Embed Build & Publish
     max_build_duration: 60
 
-    # integrations:
-    #   app_store_connect: AuraEmbedApp
-
     environment:
       groups:
         - expo-embed
 
       ios_signing:
         distribution_type: app_store
-        bundle_identifier: $BUNDLE_ID
+        bundle_identifier: com.aura.embedapp
 
       vars:
         EXPO_SDK_VERSION: "53.0.0"
@@ -40,21 +37,6 @@ workflows:
       - name: Expo prebuild (generate ios/ and android/)
         script: |
           npx expo prebuild --clean --platform all
-
-      - name: Decode Android Keystore
-        script: |
-          mkdir -p android/app
-          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
-
-      - name: Build Android (AAB)
-        script: |
-          cd android
-          ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file=keystore.jks \
-            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
-          cd ..
 
       - name: Install iOS dependencies with Swift fix
         script: |
@@ -90,6 +72,17 @@ workflows:
           end
           RUBY_SCRIPT
 
+      - name: Set up iOS code signing
+        script: |
+          # Initialize keychain
+          keychain initialize
+          
+          # Add certificates from Codemagic
+          keychain add-certificates
+          
+          # Apply provisioning profiles
+          xcode-project use-profiles
+
       - name: Build iOS (IPA)
         script: |
           cd ios
@@ -103,20 +96,18 @@ workflows:
             fi
           done
           
-          echo "Found workspace: $WORKSPACE_PATH"
+          echo "Building with workspace: $WORKSPACE_PATH"
           
           # Create directories
           mkdir -p build/ipa
           
-          # Build - Codemagic handles code signing automatically
+          # Build with proper code signing
           set -o pipefail
           xcodebuild -workspace "$WORKSPACE_PATH" \
             -scheme AuraEmbedApp \
             -configuration Release \
-            -sdk iphoneos \
             -archivePath "build/app.xcarchive" \
-            CODE_SIGN_IDENTITY="iPhone Distribution" \
-            archive 2>&1 | tee xcodebuild.log
+            clean archive 2>&1 | tee xcodebuild.log
           
           BUILD_RESULT=${PIPESTATUS[0]}
           if [ $BUILD_RESULT -ne 0 ]; then
@@ -126,13 +117,7 @@ workflows:
             exit $BUILD_RESULT
           fi
           
-          # Verify archive
-          if [ ! -d "build/app.xcarchive" ]; then
-            echo "ERROR: Archive not created"
-            exit 1
-          fi
-          
-          # Export IPA - Codemagic handles export options automatically
+          # Export IPA
           echo "=== Exporting IPA ==="
           xcodebuild -exportArchive \
             -archivePath "build/app.xcarchive" \
@@ -140,12 +125,26 @@ workflows:
             -exportOptionsPlist $FCI_EXPORT_OPTIONS_FILE
           
           echo "=== Build complete ==="
-          ls -laR build/
+          ls -la build/ipa/
+
+      - name: Decode Android Keystore
+        script: |
+          mkdir -p android/app
+          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
+
+      - name: Build Android (AAB)
+        script: |
+          cd android
+          chmod +x gradlew
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=keystore.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
 
     artifacts:
-      - build/ios/ipa/*.ipa
-      - build/app/outputs/**/*.aab
-      - build/app/outputs/**/*.apk
+      - ios/build/ipa/*.ipa
+      - android/app/build/outputs/bundle/release/*.aab
 
     publishing:
       app_store_connect:
@@ -154,10 +153,12 @@ workflows:
         issuer_id: $APP_STORE_CONNECT_ISSUER_ID
         submit_to_testflight: true
         submit_to_app_store: false
+        
       google_play:
         credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
         track: internal
         submit_as_draft: false
+        
       email:
         recipients:
           - kutbip@aura.services
