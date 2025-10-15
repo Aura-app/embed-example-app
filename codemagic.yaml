@@ -83,49 +83,56 @@ workflows:
           # Apply provisioning profiles
           xcode-project use-profiles
 
+      # - name: Build iOS (IPA)
+      #   script: |
+      #     cd ios
+          
+      #     # Find workspace
+      #     WORKSPACE_PATH=""
+      #     for file in *.xcworkspace; do
+      #       if [ -d "$file" ]; then
+      #         WORKSPACE_PATH="$file"
+      #         break
+      #       fi
+      #     done
+          
+      #     echo "Building with workspace: $WORKSPACE_PATH"
+          
+      #     # Create directories
+      #     mkdir -p build/ipa
+          
+      #     # Build with proper code signing
+      #     set -o pipefail
+      #     xcodebuild -workspace "$WORKSPACE_PATH" \
+      #       -scheme AuraEmbedApp \
+      #       -configuration Release \
+      #       -archivePath "build/app.xcarchive" \
+      #       clean archive 2>&1 | tee xcodebuild.log
+          
+      #     BUILD_RESULT=${PIPESTATUS[0]}
+      #     if [ $BUILD_RESULT -ne 0 ]; then
+      #       echo "=== BUILD FAILED ==="
+      #       tail -100 xcodebuild.log
+      #       grep -i "error:" xcodebuild.log | tail -20
+      #       exit $BUILD_RESULT
+      #     fi
+          
+      #     # Export IPA
+      #     echo "=== Exporting IPA ==="
+      #     xcodebuild -exportArchive \
+      #       -archivePath "build/app.xcarchive" \
+      #       -exportPath "build/ipa" \
+      #       -exportOptionsPlist $FCI_EXPORT_OPTIONS_FILE
+          
+      #     echo "=== Build complete ==="
+      #     ls -la build/ipa/
+
       - name: Build iOS (IPA)
         script: |
-          cd ios
-          
-          # Find workspace
-          WORKSPACE_PATH=""
-          for file in *.xcworkspace; do
-            if [ -d "$file" ]; then
-              WORKSPACE_PATH="$file"
-              break
-            fi
-          done
-          
-          echo "Building with workspace: $WORKSPACE_PATH"
-          
-          # Create directories
-          mkdir -p build/ipa
-          
-          # Build with proper code signing
-          set -o pipefail
-          xcodebuild -workspace "$WORKSPACE_PATH" \
-            -scheme AuraEmbedApp \
-            -configuration Release \
-            -archivePath "build/app.xcarchive" \
-            clean archive 2>&1 | tee xcodebuild.log
-          
-          BUILD_RESULT=${PIPESTATUS[0]}
-          if [ $BUILD_RESULT -ne 0 ]; then
-            echo "=== BUILD FAILED ==="
-            tail -100 xcodebuild.log
-            grep -i "error:" xcodebuild.log | tail -20
-            exit $BUILD_RESULT
-          fi
-          
-          # Export IPA
-          echo "=== Exporting IPA ==="
-          xcodebuild -exportArchive \
-            -archivePath "build/app.xcarchive" \
-            -exportPath "build/ipa" \
-            -exportOptionsPlist $FCI_EXPORT_OPTIONS_FILE
-          
-          echo "=== Build complete ==="
-          ls -la build/ipa/
+          xcode-project build-ipa \
+            --workspace "ios/AuraEmbedApp.xcworkspace" \
+            --scheme "AuraEmbedApp" \
+            --export-method app-store
 
       - name: Decode Android Keystore
         script: |
