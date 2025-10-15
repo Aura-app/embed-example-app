@@ -131,8 +131,7 @@ workflows:
         script: |
           xcode-project build-ipa \
             --workspace "ios/AuraEmbedApp.xcworkspace" \
-            --scheme "AuraEmbedApp" \
-            --export-method app-store
+            --scheme "AuraEmbedApp"
 
       - name: Decode Android Keystore
         script: |
