@@ -156,7 +156,7 @@ workflows:
           ls -la app/build/outputs/bundle/release/
 
     artifacts:
-      - ios/build/ipa/*.ipa
+      - build/ios/ipa/*.ipa
       - android/app/build/outputs/bundle/release/*.aab
 
     publishing:
