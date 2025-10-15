@@ -23,7 +23,7 @@ const HomeScreen = ({ route, navigation }: { route: { params: { dispatchURL: str
             uri: dispatchURL
           }} 
           onShouldStartLoadWithRequest={(request) => {
-            if (request?.url?.toLocaleLowerCase()?.startsWith('https://finish.com')) {
+            if (request?.url?.toLocaleLowerCase()?.startsWith('myapp://finish.com')) {
               try {
                 const parsed = new URL(request.url);
                 const status = (parsed.searchParams.get('status') || 'unknown').toLowerCase();

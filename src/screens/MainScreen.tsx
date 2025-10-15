@@ -6,9 +6,9 @@ import * as Location from 'expo-location';
 import Loader from '../components/Loader';
 
 const MainScreen = ({ navigation, route }: { navigation: any, route: { params: { token: string } } }) => {
+  const FINISH_URL = 'myapp://finish.com';
   const [customerId, setCustomerId] = useState('');
   const [email, setEmail] = useState('');
-  const [returnUrl, setReturnUrl] = useState('');
   const [siteName, setSiteName] = useState('');
   const [siteReferenceId, setSiteReferenceId] = useState('');
   const [customerReferenceId, setCustomerReferenceId] = useState('');
@@ -52,13 +52,13 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
   };
 
   const handleSignup = async () => {
-    if (!email || !returnUrl || !siteName) {
-      Alert.alert('Validation Error', 'Email, Return URL, and Site Name fields are mandatory');
+    if (!email || !siteName) {
+      Alert.alert('Validation Error', 'Email and Site Name fields are mandatory');
       return;
     }
     setLoading(true)
     try {
-      const dispatchURL = await signupCustomer(email, returnUrl, customerReferenceId, siteName, 
+      const dispatchURL = await signupCustomer(email, FINISH_URL, customerReferenceId, siteName, 
         siteReferenceId, token);
       navigation.navigate('Home', {dispatchURL});
     } catch (error) {
@@ -76,6 +76,10 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
       <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
         <View style={styles.container}>
           <Image source={require('../assets/icon.png')} style={styles.logo} />
+          <View style={styles.infoContainer}>
+            <Text style={styles.infoLabel}>Return URL</Text>
+            <Text style={styles.infoValue}>{FINISH_URL}</Text>
+          </View>
           
           
           <View style={styles.flow_selector}>
@@ -122,14 +126,7 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter return url"
-                value={returnUrl}
-                onChangeText={(t) => setReturnUrl(t.toLowerCase())}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+              
               <TextInput
                 style={styles.input}
                 placeholder="Enter Customer reference id (Optional)"
@@ -195,6 +192,25 @@ const styles = StyleSheet.create({
   buttonSpacing: {
     marginTop: 20,
     marginBottom: 20
+  },
+  infoContainer: {
+    width: '80%',
+    backgroundColor: '#f4f6f8',
+    borderColor: '#d3dce6',
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 10,
+  },
+  infoLabel: {
+    color: '#666',
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  infoValue: {
+    color: '#111',
+    fontSize: 14,
+    fontWeight: '600',
   },
   text: {
     color: '#fff',

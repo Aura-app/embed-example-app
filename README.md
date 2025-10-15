@@ -40,7 +40,7 @@ This repository is a minimal React Native (Expo) app used to demonstrate embeddi
 See `src/screens/LoginScreen.tsx` for a reminder note; it demonstrates flow, not production security.
 
 ### Redirect and result handling
-When the embedded flow finishes, it redirects to a `https://finish.com` URL that the app intercepts and summarizes. The app parses the following query parameters and shows them in an alert after navigating back:
+When the embedded flow finishes, it redirects to a `myapp://finish.com` URL that the app intercepts and summarizes. The app parses the following query parameters and shows them in an alert after navigating back:
 
 - **status**: `completed`, `failed`, or `cancelled`
 - **error_code**: present when `status=failed` (e.g., `payment_failed`)
