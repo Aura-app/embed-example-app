@@ -142,9 +142,9 @@ workflows:
           # Build with absolute keystore path
           ./gradlew bundleRelease \
             -Pandroid.injected.signing.store.file=$CM_BUILD_DIR/keystore.jks \
-            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+            -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
           
           echo "=== Android build complete ==="
           ls -la app/build/outputs/bundle/release/
