@@ -8,7 +8,5 @@ const config = {
     API_URL: 'https://staging-panic.aura.services/panic-api/v2',
   },
 };
-
 const ENV = AURA_ENV || 'staging';
-
 export default config[ENV];

@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { StyleSheet, View, StatusBar } from 'react-native';
+import { StyleSheet, View, StatusBar, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 
 const HomeScreen = ({ route, navigation }: { route: { params: { dispatchURL: string } }, navigation: any }) => {
@@ -24,22 +24,46 @@ const HomeScreen = ({ route, navigation }: { route: { params: { dispatchURL: str
           }} 
           onShouldStartLoadWithRequest={(request) => {
             if (request?.url?.toLocaleLowerCase()?.startsWith('https://finish.com')) {
-              navigation.goBack();
-              alert(request.url);
-              return false; // Block loading the custom scheme
+              try {
+                const parsed = new URL(request.url);
+                const status = (parsed.searchParams.get('status') || 'unknown').toLowerCase();
+                const errorCode = parsed.searchParams.get('error_code') || undefined;
+                const customerId = parsed.searchParams.get('customerId') || undefined;
+                const siteId = parsed.searchParams.get('siteId') || undefined;
+                const signupSessionId = parsed.searchParams.get('signupSessionId') || undefined;
+
+                const lines: string[] = [];
+                lines.push(`Status: ${status}`);
+                if (status === 'failed' && errorCode) {
+                  lines.push(`Error code: ${errorCode}`);
+                }
+                if (customerId) {
+                  lines.push(`Customer ID: ${customerId}`);
+                }
+                if (siteId) {
+                  lines.push(`Site ID: ${siteId}`);
+                }
+                if (signupSessionId) {
+                  lines.push(`Signup Session ID: ${signupSessionId}`);
+                }
+
+                navigation.goBack();
+                Alert.alert('Flow finished', lines.join('\n'));
+              } catch (e) {
+                navigation.goBack();
+                Alert.alert('Flow finished', request.url);
+              }
+              return false; // Block loading the finish URL in WebView
             }
             return true;
           }}
           style={[
             styles.webview,
             {
-              // Only add top margin for the notch/dynamic island area
               marginTop: 0,
-              // Don't add bottom margin to allow content behind home indicator
               marginBottom: 0,
             }
           ]}
-          // Prevent WebView from automatically adjusting for safe areas
           automaticallyAdjustContentInsets={false}
           contentInset={{ top: 0, left: 0, bottom: 0, right: 0 }}
         />

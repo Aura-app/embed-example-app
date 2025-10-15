@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, TextInput, Alert, Image, Text, ScrollView, KeyboardAvoidingView, Platform, Switch, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, TextInput, Alert, Image, Text, ScrollView, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
 import CenterButton from '../components/CenterButton';
 import { createCallout, signupCustomer } from '../api';
 import * as Location from 'expo-location';
@@ -13,7 +13,6 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
   const [siteReferenceId, setSiteReferenceId] = useState('');
   const [customerReferenceId, setCustomerReferenceId] = useState('');
   const [loading, setLoading] = useState(false);
-  const [isWebView, setIsWebView] = useState(true);
   const [activeFlow, setActiveFlow] = useState<'dispatch' | 'signup'>('dispatch');
 
   const { token } = route.params;
@@ -57,7 +56,6 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
       Alert.alert('Validation Error', 'Email, Return URL, and Site Name fields are mandatory');
       return;
     }
-    console.log("isWebView: ", isWebView);
     setLoading(true)
     try {
       const dispatchURL = await signupCustomer(email, returnUrl, customerReferenceId, siteName, 
@@ -70,8 +68,6 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
     }
   };
 
-  const toggleSwitch = (value: boolean) => setIsWebView(value);
-
   return (
     <KeyboardAvoidingView
       style={{ flex: 1 }}
@@ -81,17 +77,7 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
         <View style={styles.container}>
           <Image source={require('../assets/icon.png')} style={styles.logo} />
           
-          <View style={styles.toggleContainer}>
-            <Text style={styles.toggleText}>Web View</Text>
-            <Switch
-              trackColor={{ false: '#767577', true: '#84eab3' }}
-              thumbColor={isWebView ? '#2eb774' : '#f4f3f4'}
-              ios_backgroundColor="#3e3e3e"
-              onValueChange={toggleSwitch}
-              value={isWebView}
-            />
-            <Text style={styles.toggleText}>Browser</Text>
-          </View>
+          
           <View style={styles.flow_selector}>
             <TouchableOpacity
               style={[styles.flow_button, activeFlow === 'dispatch' && styles.flow_button_active]}
@@ -229,16 +215,7 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start', // Align the label to the left
     marginLeft: '10%', // Align with the text field
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  toggleText: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginHorizontal: 10
-  },
+  
   flow_selector: {
     flexDirection: 'row',
     justifyContent: 'center',

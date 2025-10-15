@@ -60,9 +60,6 @@ export const signupCustomer = async (email: string, returnUrl: string, customerR
       returnUrl,
       customerReferenceId
     }
-    console.log(apiClient.getUri({
-      url: `/customer-signup/sessions`,
-    }));
     const response = await apiClient.post(`/customer-signup/sessions`, payload, {
       headers: {
         Authorization: `Bearer ${token}`,
