@@ -44,9 +44,10 @@ When the embedded flow finishes, it redirects to a `https://finish.com` URL that
 
 - **status**: `completed`, `failed`, or `cancelled`
 - **error_code**: present when `status=failed` (e.g., `payment_failed`)
-- **customerId**: optional
-- **siteId**: optional
-- **signupSessionId**: optional
+- **signupSessionId**: Will always be returned
+- **customerId**: Will be returned if an Aura customer was created during the flow
+- **siteId**: Will be returned if a site (predefined location) was returned during the flow
+
 
 See `src/screens/HomeScreen.tsx` for the URL handling logic.
 
