@@ -86,7 +86,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
         style={styles.input}
         placeholder="Enter Client ID"
         value={clientId}
-        onChangeText={(t) => setClientId(t.toLowerCase())}
+        onChangeText={setClientId}
         autoCapitalize="none"
         autoCorrect={false}
       />
@@ -94,7 +94,7 @@ const LoginScreen = ({ navigation }: { navigation: any }) => {
         style={styles.input}
         placeholder="Enter Client Secret"
         value={clientSecret}
-        onChangeText={(t) => setClientSecret(t.toLowerCase())}
+        onChangeText={setClientSecret}
         autoCapitalize="none"
         autoCorrect={false}
       />
