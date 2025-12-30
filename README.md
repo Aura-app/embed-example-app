@@ -61,6 +61,11 @@ Create a `.env` file to set the environment explicitly:
 AURA_ENV=staging
 ```
 
+**Available values:**
+- `staging` - for testing before release (default if not specified)
+- `development` - for local development
+- `local` - for local development with local API server
+
 You can run the app normally with `npm run start`. For device builds, ensure your `.env` is present before building.
 
 ### What to Explore
