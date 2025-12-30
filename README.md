@@ -55,16 +55,12 @@ See `src/screens/HomeScreen.tsx` for the URL handling logic.
 - Runtime config lives in `src/config.js` and switches by `AURA_ENV` (from `@env`):
   - `staging` (default): uses the staging Aura API
   - `development`: uses the dev Aura API
+  - `local`: uses the local Aura API
 
 Create a `.env` file to set the environment explicitly:
 ```ini
 AURA_ENV=staging
 ```
-
-**Available values:**
-- `staging` - for testing before release (default if not specified)
-- `development` - for local development
-- `local` - for local development with local API server
 
 You can run the app normally with `npm run start`. For device builds, ensure your `.env` is present before building.
 
