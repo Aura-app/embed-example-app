@@ -47,19 +47,27 @@ export const createCallout = async (customerId: string, token: string) => {
   }
 };
 
-export const signupCustomer = async (email: string, returnUrl: string, customerReferenceId: string, 
-  siteName: string, siteReferenceId: string, token: string
-) => {
+interface SignupCustomerParams {
+  email: string;
+  returnUrl: string;
+  siteName: string;
+  token: string;
+  customerReferenceId?: string;
+  siteReferenceId?: string;
+}
+
+export const signupCustomer = async (params: SignupCustomerParams) => {
   try {
+    const { email, returnUrl, siteName, siteReferenceId, customerReferenceId, token } = params;
     const payload = {
       siteDetails: {
         siteName,
-        siteReferenceId
+        ...(siteReferenceId && { siteReferenceId })
       },
       email,
       returnUrl,
-      customerReferenceId
-    }
+      ...(customerReferenceId && { customerReferenceId })
+    };
     const response = await apiClient.post(`/customer-signup/sessions`, payload, {
       headers: {
         Authorization: `Bearer ${token}`,

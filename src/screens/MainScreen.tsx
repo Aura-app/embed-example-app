@@ -4,7 +4,6 @@ import CenterButton from '../components/CenterButton';
 import { createCallout, signupCustomer } from '../api';
 import * as Location from 'expo-location';
 import Loader from '../components/Loader';
-
 const MainScreen = ({ navigation, route }: { navigation: any, route: { params: { token: string } } }) => {
   const FINISH_URL = 'myapp://finish.com';
   const [customerId, setCustomerId] = useState('');
@@ -58,8 +57,14 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
     }
     setLoading(true)
     try {
-      const dispatchURL = await signupCustomer(email, FINISH_URL, customerReferenceId, siteName, 
-        siteReferenceId, token);
+      const dispatchURL = await signupCustomer({
+        email,
+        returnUrl: FINISH_URL,
+        siteName,
+        token,
+        ...(customerReferenceId && { customerReferenceId }),
+        ...(siteReferenceId && { siteReferenceId })
+      });
       navigation.navigate('Home', {dispatchURL});
     } catch (error) {
       console.error('Failed to fetch data on button click:', error);
