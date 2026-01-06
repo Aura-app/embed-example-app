@@ -7,7 +7,6 @@ import Loader from '../components/Loader';
 
 
 const FINISH_URL = 'myapp://finish.com';
-const availableFlows: ('intro' | 'payment' | 'auth' | 'locations' | 'tours')[] = ['intro', 'payment', 'auth', 'locations', 'tours'];
 
 const MainScreen = ({ navigation, route }: { navigation: any, route: { params: { token: string } } }) => {
   const [customerId, setCustomerId] = useState('');
@@ -17,7 +16,6 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
   const [customerReferenceId, setCustomerReferenceId] = useState('');
   const [loading, setLoading] = useState(false);
   const [activeFlow, setActiveFlow] = useState<'dispatch' | 'signup'>('dispatch');
-  const [flows, setFlows] = useState<string[]>([]);
 
   const { token } = route.params;
 
@@ -55,13 +53,6 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
     }
   };
 
-  const toggleOption = (option: string) => {
-    setFlows((prev) => prev.includes(option) 
-        ? prev.filter(item => item !== option)
-        : [...prev, option]
-    );
-  };
-
   const handleSignup = async () => {
     if (!email || !siteName) {
       Alert.alert('Validation Error', 'Email and Site Name fields are mandatory');
@@ -76,7 +67,6 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
         token,
         ...(customerReferenceId && { customerReferenceId }),
         ...(siteReferenceId && { siteReferenceId }),
-        ...(flows.length > 0 && { flows })
       });
       navigation.navigate('Home', {dispatchURL});
     } catch (error) {
@@ -170,37 +160,6 @@ const MainScreen = ({ navigation, route }: { navigation: any, route: { params: {
                 autoCapitalize="none"
                 autoCorrect={false}
               />
-              <Text style={styles.label}>Flows (optional)</Text>
-              <View style={styles.flowOptionsContainer}>
-                {availableFlows.map((option) => {
-                  const flowIndex = flows.indexOf(option);
-                  const isSelected = flowIndex !== -1;
-                  const orderNumber = isSelected ? flowIndex + 1 : null;
-                  
-                  return (
-                    <TouchableOpacity
-                      key={option}
-                      style={[
-                        styles.flowOptionButton,
-                        isSelected && styles.flowOptionButtonSelected
-                      ]}
-                      onPress={() => toggleOption(option)}
-                    >
-                      <Text style={[
-                        styles.flowOptionButtonText,
-                        isSelected && styles.flowOptionButtonTextSelected
-                      ]}>
-                        {option.charAt(0).toUpperCase() + option.slice(1)}
-                      </Text>
-                      {orderNumber && (
-                        <View style={styles.badge}>
-                          <Text style={styles.badgeText}>{orderNumber}</Text>
-                        </View>
-                      )}
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
               <CenterButton title="Customer Signup Flow" onPress={(handleSignup)} style={[styles.button_theme, styles.buttonSpacing]} textStyle={styles.text} />
             </View>
           )}
@@ -307,58 +266,6 @@ const styles = StyleSheet.create({
   },
   flow_button_text_active: {
     color: '#2eb774',
-    fontWeight: '700',
-  },
-  flowOptionsContainer: {
-    width: '80%',
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginBottom: 10,
-    paddingTop: 10,
-  },
-  flowOptionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
-    backgroundColor: '#f5f5f5',
-    minWidth: 80,
-    alignItems: 'center',
-    justifyContent: 'center',
-    position: 'relative',
-  },
-  flowOptionButtonSelected: {
-    borderColor: '#2eb774',
-    backgroundColor: '#dff6ea',
-  },
-  flowOptionButtonText: {
-    color: '#333',
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  flowOptionButtonTextSelected: {
-    color: '#2eb774',
-    fontWeight: '700',
-  },
-  badge: {
-    position: 'absolute',
-    top: -8,
-    right: -8,
-    backgroundColor: '#2eb774',
-    borderRadius: 12,
-    minWidth: 24,
-    height: 24,
-    paddingHorizontal: 4,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
-  },
-  badgeText: {
-    color: '#fff',
-    fontSize: 10,
     fontWeight: '700',
   },
 });
