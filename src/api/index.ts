@@ -54,12 +54,11 @@ interface SignupCustomerParams {
   token: string;
   customerReferenceId?: string;
   siteReferenceId?: string;
-  flows?: string[];
 }
 
 export const signupCustomer = async (params: SignupCustomerParams) => {
   try {
-    const { email, returnUrl, siteName, siteReferenceId, customerReferenceId, flows, token } = params;
+    const { email, returnUrl, siteName, siteReferenceId, customerReferenceId, token } = params;
     const payload = {
       siteDetails: {
         siteName,
@@ -68,7 +67,6 @@ export const signupCustomer = async (params: SignupCustomerParams) => {
       email,
       returnUrl,
       ...(customerReferenceId && { customerReferenceId }),
-      ...(flows && flows.length > 0 && { flows })
     };
     const response = await apiClient.post(`/customer-signup/sessions`, payload, {
       headers: {
