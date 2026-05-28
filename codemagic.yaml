@@ -35,24 +35,20 @@ workflows:
         script: |
           npx expo prebuild --clean --platform all
 
-      # - name: Install iOS dependencies
-      #   script: |
-      #     cd ios && pod install
+      - name: Decode Android Keystore
+        script: |
+          mkdir -p android/app
+          echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
 
-      # - name: Decode Android Keystore
-      #   script: |
-      #     mkdir -p android/app
-      #     echo $ANDROID_KEYSTORE_BASE64 | base64 --decode > android/app/keystore.jks
-
-      # - name: Build Android (AAB)
-      #   script: |
-      #     cd android
-      #     ./gradlew bundleRelease \
-      #       -Pandroid.injected.signing.store.file=keystore.jks \
-      #       -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
-      #       -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
-      #       -Pandroid.injected.signing.key.password=$KEY_PASSWORD
-      #     cd ..
+      - name: Build Android (AAB)
+        script: |
+          cd android
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file=keystore.jks \
+            -Pandroid.injected.signing.store.password=$KEYSTORE_PASSWORD \
+            -Pandroid.injected.signing.key.alias=$KEY_ALIAS \
+            -Pandroid.injected.signing.key.password=$KEY_PASSWORD
+          cd ..
 
       - name: Install iOS dependencies with Swift fix
         script: |
@@ -205,7 +201,7 @@ workflows:
 
     artifacts:
       - ios/build/ipa/*.ipa
-      # - android/app/build/outputs/bundle/release/*.aab
+      - android/app/build/outputs/bundle/release/*.aab
 
     publishing:
       app_store_connect:
@@ -215,10 +211,10 @@ workflows:
         submit_to_testflight: true
         submit_to_app_store: false
 
-      # google_play:
-      #   credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
-      #   track: internal
-      #   submit_as_draft: false
+      google_play:
+        credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+        track: internal
+        submit_as_draft: false
 
       email:
         recipients:

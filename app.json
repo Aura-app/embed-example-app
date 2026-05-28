@@ -20,6 +20,7 @@
       "**/*"
     ],
     "ios": {
+      "icon": "./src/assets/icon.png",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
@@ -27,6 +28,7 @@
       "bundleIdentifier": "com.aura.embedapp"
     },
     "android": {
+      "icon": "./src/assets/icon.png",
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
