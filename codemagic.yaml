@@ -55,17 +55,14 @@ workflows:
 
       - name: Build Android (AAB)
         script: |
-          # Decode keystore to an absolute path so Gradle can find it
-          # regardless of which directory the daemon runs from.
-          KEYSTORE_PATH="$CM_BUILD_DIR/android/app/keystore.jks"
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
+          # Decode keystore to android/app/ — this is where build.gradle's
+          # file("keystore.jks") resolves to, so no injected -P params needed.
+          # The generated build.gradle reads ANDROID_KEYSTORE_PASSWORD,
+          # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD via System.getenv() directly.
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
 
           cd android
-          ./gradlew bundleRelease \
-            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
-            -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
-            -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
-            -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
+          ./gradlew bundleRelease
 
       # ── iOS ─────────────────────────────────────────────────────────────────
 
