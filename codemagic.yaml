@@ -9,10 +9,10 @@ workflows:
         # Required variables in the 'expo-embed' group:
         #
         # Android:
-        #   ANDROID_KEYSTORE_BASE64   — base64-encoded keystore.jks
-        #   KEYSTORE_PASSWORD         — keystore password
-        #   KEY_ALIAS                 — key alias
-        #   KEY_PASSWORD              — key password
+        #   ANDROID_KEYSTORE_BASE64      — base64-encoded keystore.jks
+        #   ANDROID_KEYSTORE_PASSWORD    — keystore store password
+        #   ANDROID_KEY_ALIAS            — key alias
+        #   ANDROID_KEY_PASSWORD         — key password
         #
         # iOS (App Store Connect API — used for automatic signing):
         #   APP_STORE_CONNECT_PRIVATE_KEY      — contents of the .p8 key file
