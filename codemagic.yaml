@@ -14,7 +14,12 @@ workflows:
         #   ANDROID_KEY_ALIAS            — key alias
         #   ANDROID_KEY_PASSWORD         — key password
         #
-        # iOS (App Store Connect API — used for automatic signing):
+        # iOS (manual certificate + profile signing):
+        #   CM_CERTIFICATE             — base64 of Certificates.p12
+        #   CM_CERTIFICATE_PASSWORD    — password used when exporting the .p12
+        #   CM_PROVISIONING_PROFILE    — base64 of EmbedApp.mobileprovision
+        #
+        # iOS (App Store Connect API — used for TestFlight/App Store publishing):
         #   APP_STORE_CONNECT_PRIVATE_KEY      — contents of the .p8 key file
         #   APP_STORE_CONNECT_KEY_IDENTIFIER   — key ID (e.g. ABC1234567)
         #   APP_STORE_CONNECT_ISSUER_ID        — issuer UUID
@@ -55,14 +60,19 @@ workflows:
 
       - name: Build Android (AAB)
         script: |
-          # Decode keystore to android/app/ — this is where build.gradle's
-          # file("keystore.jks") resolves to, so no injected -P params needed.
-          # The generated build.gradle reads ANDROID_KEYSTORE_PASSWORD,
-          # ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD via System.getenv() directly.
-          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/keystore.jks
+          # Decode keystore to an absolute path.
+          # Injected -P signing params are required because expo prebuild --clean
+          # regenerates build.gradle without a release signing config (SDK 54+),
+          # causing Gradle to fall back to the debug keystore silently.
+          KEYSTORE_PATH="$CM_BUILD_DIR/android/app/keystore.jks"
+          echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
 
           cd android
-          ./gradlew bundleRelease
+          ./gradlew bundleRelease \
+            -Pandroid.injected.signing.store.file="$KEYSTORE_PATH" \
+            -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
 
       # ── iOS ─────────────────────────────────────────────────────────────────
 
@@ -76,19 +86,28 @@ workflows:
           # Create a temporary keychain for this build
           keychain initialize
 
-          # Download the App Store distribution certificate and provisioning
-          # profile from App Store Connect using the API key env vars.
-          # --create will create the profile if it doesn't exist yet.
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
+          # Decode and import the Apple Distribution certificate + private key.
+          # CM_CERTIFICATE = base64 of Certificates.p12
+          # CM_CERTIFICATE_PASSWORD = password set when exporting the .p12
+          echo "$CM_CERTIFICATE" | base64 --decode > /tmp/certificate.p12
+          if [ -n "$CM_CERTIFICATE_PASSWORD" ]; then
+            keychain add-certificates \
+              --certificate /tmp/certificate.p12 \
+              --certificate-password "$CM_CERTIFICATE_PASSWORD"
+          else
+            keychain add-certificates --certificate /tmp/certificate.p12
+          fi
 
-          # Import the downloaded certificate into the temporary keychain
-          keychain add-certificates
+          # Install the App Store provisioning profile directly into the
+          # location where Xcode looks for profiles.
+          # CM_PROVISIONING_PROFILE = base64 of EmbedApp.mobileprovision
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
+          echo "$CM_PROVISIONING_PROFILE" | base64 --decode \
+            > "$PROFILES_DIR/profile.mobileprovision"
 
-          # Update the Xcode project to use the fetched profile (switches
-          # the target from automatic to manual signing) and writes
-          # $CM_BUILD_DIR/export_options.plist for the export step.
+          # Update the Xcode project to use manual signing with the installed
+          # profile and write $CM_BUILD_DIR/export_options.plist for export.
           xcode-project use-profiles
 
       - name: Fix Swift optimization in Pods
