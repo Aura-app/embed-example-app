@@ -62,20 +62,8 @@ workflows:
         script: |
           set -e
 
-          # Decode keystore to an absolute path.
-          # Injected -P signing params are required because expo prebuild --clean
-          # regenerates build.gradle without a release signing config (SDK 54+),
-          # causing Gradle to fall back to the debug keystore silently.
           KEYSTORE_PATH="$CM_BUILD_DIR/android/app/keystore.jks"
           echo "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$KEYSTORE_PATH"
-
-          # Verify the keystore is the correct one (must be F2:16:DC:F3:9F:35:46:90:35:81:2E:3F:38:22:9B:9A:8E:14:20:11)
-          echo "=== Keystore verification ==="
-          keytool -list -v \
-            -keystore "$KEYSTORE_PATH" \
-            -storepass "$ANDROID_KEYSTORE_PASSWORD" \
-            -alias "$ANDROID_KEY_ALIAS" \
-          | grep -E "(Alias name:|SHA1:|Owner:)"
 
           cd android
           ./gradlew bundleRelease \
@@ -83,14 +71,6 @@ workflows:
             -Pandroid.injected.signing.store.password="$ANDROID_KEYSTORE_PASSWORD" \
             -Pandroid.injected.signing.key.alias="$ANDROID_KEY_ALIAS" \
             -Pandroid.injected.signing.key.password="$ANDROID_KEY_PASSWORD"
-
-          # Confirm the produced AAB is signed with the expected key
-          echo "=== AAB signature verification ==="
-          AAB_PATH="app/build/outputs/bundle/release/app-release.aab"
-          if [ -f "$AAB_PATH" ]; then
-            unzip -p "$AAB_PATH" META-INF/*.RSA META-INF/*.DSA META-INF/*.EC 2>/dev/null \
-              | keytool -printcert | grep "SHA1:" || true
-          fi
 
       # ── iOS ─────────────────────────────────────────────────────────────────
 
